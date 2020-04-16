@@ -16,6 +16,7 @@ def cal_undistort(img, object_points, image_points):
     return undistorted_image
 
 
+
 def calibrate_camera(nx, ny):
     # function to calibrate the camera over different chessboard images and input the x and y corners
 
@@ -57,7 +58,7 @@ def calibrate_camera(nx, ny):
             mpimg.imsave(("camera_cal_outputs/calibration"+str(i)+"-corners.jpg"), img)
 
             # calculate and save undistorted image
-            undist = cal_undistort(gray, objpoints, imgpoints)
+            undist = cal_undistort(img, objpoints, imgpoints)
             mpimg.imsave(("camera_cal_outputs/calibration"+str(i)+"-undistorted.jpg"), undist)
         
         i+=1
