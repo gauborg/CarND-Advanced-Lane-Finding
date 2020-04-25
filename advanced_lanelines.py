@@ -49,6 +49,9 @@ def calibrate_camera(nx, ny):
             imgpoints.append(corners)
             objpoints.append(objp)
 
+            '''
+            After saving the drawn chessboard corners images, comment this section out to stop it from running again...
+
             # draw and display the corners
             img_corners = cv2.drawChessboardCorners(img, (nx, ny), corners, ret)
             # cv2.imshow('img',img_corners)
@@ -56,14 +59,14 @@ def calibrate_camera(nx, ny):
 
             # save the drawn chessboard corners
             # mpimg.imsave(('output_images/chessboard_corners/'+filename+'-corners'+file_extension), img_corners)
-            # cv2.imwrite(('output_images/chessboard_corners/'+filename+'-corners'+file_extension), img_corners)
+            cv2.imwrite(('output_images/chessboard_corners/'+filename+'-corners'+file_extension), img_corners)
 
             # calculate and save undistorted images
             ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img.shape[1::-1], None, None)
             undist = cv2.undistort(img, mtx, dist, None, mtx)
-            # cv2.imwrite(('output_images/undistorted_chessboard_corners/'+filename+'-undistorted'+file_extension), undist)
+            cv2.imwrite(('output_images/undistorted_chessboard_corners/'+filename+'-undistorted'+file_extension), undist)
+            '''
         
-
 
     # cv2.destroyAllWindows()
 
@@ -164,66 +167,66 @@ perspective_M = unwarp_corners(mtx, dist)
 def hue_select(img, thresh = (0,255)):
 
     # 1. convert to hls colorspace
-    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     
     # 2. apply threshold to s channel
     h_channel = hls[:,:,0]
 
     # 3. create empty array to store the binary output and apply threshold
     binary_image = np.zeros_like(h_channel)
-    binary_image[(h_channel > thresh[0]) & (h_channel <= thresh[1])] = 1
+    binary_image[(h_channel >= thresh[0]) & (h_channel <= thresh[1])] = 1
 
     return binary_image
 
 def lightness_select(img, thresh = (120,255)):
     
     # 1. Convert to hls colorspace
-    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
     # 2. Apply threshold to s channel
-    l_channel = hls[:,:,0]
+    l_channel = hls[:,:,1]
 
     # 3. Create empty array to store the binary output and apply threshold
-    binary_output = np.zeros_like(l_channel)
-    binary_output[(l_channel > thresh[0]) & (l_channel <= thresh[1])] = 1
+    binary_image = np.zeros_like(l_channel)
+    binary_image[(l_channel >= thresh[0]) & (l_channel <= thresh[1])] = 1
 
-    return binary_output
+    return binary_image
 
 def saturation_select(img, thresh = (100,255)):
 
     # 1. convert to hls colorspace
-    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
     # 2. apply threshold to s channel
     s_channel = hls[:,:,2]
 
     # 3. create empty array to store the binary output and apply threshold
     binary_image = np.zeros_like(s_channel)
-    binary_image[(s_channel > thresh[0]) & (s_channel <= thresh[1])] = 1
+    binary_image[(s_channel >= thresh[0]) & (s_channel <= thresh[1])] = 1
 
     return binary_image
 
 
 
-def abs_sobel_thresh(img, orient = 'x', sobel_kernel = 4, thresh = (0,255)):
+def abs_sobel_thresh(img, orient = 'x', sobel_kernel = 3, thresh = (0,255)):
 
     # 1. Applying the Sobel depending on x or y direction and getting the absolute value
     if (orient == 'x'):
-        abs_sobel = np.absolute(cv2.Sobel(img, cv2.CV_64F, 1, 0, sobel_kernel = ksize))
+        abs_sobel = np.absolute(cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize = sobel_kernel))
     if (orient == 'y'):
-        abs_sobel = np.absolute(cv2.Sobel(img, cv2.CV_64F, 0, 1, sobel_kernel = ksize))
+        abs_sobel = np.absolute(cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize = sobel_kernel))
 
     # 2. Scaling to 8-bit and converting to np.uint8
     scaled_sobel = np.uint8(255*abs_sobel/np.max(abs_sobel))
 
     # 3. Create mask of '1's where the sobel magnitude is > thresh_min and < thresh_max
-    binary_output = np.zeros_like(scaled_sobel)
-    binary_output[(scaled_sobel > thresh[0]) & (scaled_sobel <= thresh[1])] = 1
-    
-    return binary_output
+    binary_image = np.zeros_like(scaled_sobel)
+    binary_image[(scaled_sobel >= thresh[0]) & (scaled_sobel <= thresh[1])] = 1
+
+    return binary_image
 
 
-def mag_sobel(img, sobel_kernel=3, mag_thresh = (0,255)):
+def mag_sobel(img, sobel_kernel=3, thresh = (0,255)):
 
     # 1. Applying the Sobel (taking the derivative)
     sobelx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize = sobel_kernel)
@@ -236,44 +239,40 @@ def mag_sobel(img, sobel_kernel=3, mag_thresh = (0,255)):
     scaled_sobel = np.uint8(255*mag_sobel/np.max(mag_sobel))
 
     # 5. Create mask of '1's where the scaled gradient magnitude is > thresh_min and < thresh_max
-    binary_output = np.zeros_like(scaled_sobel)
-    binary_output[(scaled_sobel > mag_thresh[0]) & (scaled_sobel <= mag_thresh[1])] = 1
+    binary_image = np.zeros_like(scaled_sobel)
+    binary_image[(scaled_sobel >= thresh[0]) & (scaled_sobel <= thresh[1])] = 1
     
-    return binary_output
+    return binary_image
 
 
 # Choose a Sobel kernel size
 
 def dir_threshold(img, sobel_kernel=3, thresh=(0, np.pi/2)):
     
-    # 1. Grayscaling
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     
-    # 2. Applying the Sobel (taking the derivative)
-    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize = sobel_kernel)
-    sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize = sobel_kernel)
+    # 1. Applying the Sobel (taking the derivative)
+    sobelx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize = sobel_kernel)
+    sobely = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize = sobel_kernel)
     
-    # 3. Take absolute magnitude
+    # 2. Take absolute magnitude
     abs_sobelx = np.absolute(sobelx)
     abs_sobely = np.absolute(sobely)
     
+    # 3. Take Tangent value
     sobel_orient = np.arctan2(abs_sobely, abs_sobelx)
     
-    # 5. Create mask of '1's where the orientation magnitude is > thresh_min and < thresh_max
-    binary_output = np.zeros_like(sobel_orient)
-    binary_output[(sobel_orient > thresh[0]) & (sobel_orient <= thresh[1])] = 1
+    # 4. Create mask of '1's where the orientation magnitude is > thresh_min and < thresh_max
+    binary_image = np.zeros_like(sobel_orient)
+    binary_image[(sobel_orient >= thresh[0]) & (sobel_orient <= thresh[1])] = 1
     
-    return binary_output
+    return binary_image
 
-
-# specify the kernel size here
-ksize = 9
 
 ### Combined Thresholding Function
 
 def combined_threshold(img):
 
-    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     s_channel = hls[:,:,2]
     l_select = hls[:,:,1]
 
@@ -282,42 +281,67 @@ def combined_threshold(img):
 
     # applying thresholding and storing different filtered images
 
-    h_binary = hue_select(img, thresh = (0, 255))
+    h_binary = hue_select(img, thresh = (100, 255))
     l_binary = lightness_select(img, thresh = (120, 255))
     s_binary = saturation_select(img, thresh = (100, 255))
 
+    ksize = 9
     gradx = abs_sobel_thresh(s_channel, orient='x', sobel_kernel=ksize, thresh=(20, 100))
-    grady = abs_sobel_thresh(gray, orient='y', sobel_kernel=ksize, thresh=(50, 255))
+    # grady = abs_sobel_thresh(gray, orient='y', sobel_kernel=ksize, thresh=(50, 255))
 
-    mag_binary = mag_sobel(gray, sobel_kernel=ksize, mag_thresh=(50, 255))
-    dir_binary = dir_threshold(gray, sobel_kernel=ksize, thresh=(0.7,1.3))
+    # for displaying various filters
+    f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(25, 10))
+    # f.tight_layout()
+
+    ax1.imshow(h_binary)
+    ax1.set_title('Hue', fontsize=20)
+
+    ax2.imshow(l_binary)
+    ax2.set_title('Lightness', fontsize=20)
+
+    ax3.imshow(s_binary)
+    ax3.set_title('Saturation', fontsize=20)
+
+    ax4.imshow(gradx)
+    ax4.set_title('X-Gradient', fontsize=20)
+    # plt.show()
+    plt.savefig('output_images/hls_separation/hls-plots-'+ i)
+
 
     # creating an empty binary image
-    combined_binary = np.zeros_like(img)
-    combined_binary[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1))] = 1
-
+    combined_binary = np.zeros_like(s_binary)
+    # combined_binary = s_binary
+    combined_binary[((s_binary == 1))] = 1
+    # cv2.imwrite(('output_images/binary/' + i), combined_binary)
+    
     # isolate region of interest
     height, width = gray.shape
-
+    # print(height, width)
+    
+    '''
     mask = np.zeros_like(combined_binary)
     region = np.array([[0, height-1], [width/2, int(height/2)], [width-1, height-1]], dtype=np.int32)
+    # print(region)
     cv2.fillPoly(mask, [region], 1)
 
     combined_binary = cv2.bitwise_and(combined_binary, mask)
+    cv2.imwrite(('output_images/binary/' + i), combined_binary)
+    '''
 
     return combined_binary
 
 
 # Let us test our functions on given test images
 directory = os.listdir("test_images/")
-print(directory)
+# print(directory)
 
 
 for i in directory:
 
     img = mpimg.imread(os.path.join("test_images/",i))
+
     thresholded = combined_threshold(img)
-    undist = cv2.undistort(thresholded, mtx, dist, None, mtx)
-    mpimg.imsave(os.path.join("output_images/thresholded/",i),undist)
+    # undist = cv2.undistort(thresholded, mtx, dist, None, mtx)
+    # mpimg.imsave(('output_images/test_images_output/thresholded-', i),undist)
     #warped,img_pts,presp_M,persp_M_inv = persp_view(undist)
     #mpimg.imsave(os.path.join("output_images/warped/",i),warped)
