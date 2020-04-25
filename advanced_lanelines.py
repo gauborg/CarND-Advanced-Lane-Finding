@@ -155,11 +155,9 @@ def unwarp_corners(mtx,dist):
     return M
 
 
-
 # function calls to calibrate camera and get the perspective matrix
 mtx, dist = calibrate_camera(9,6)
 perspective_M = unwarp_corners(mtx, dist)
-
 
 # Thresholding functions
 # since we have evaludated earlier that HLS gives good image filtering results
@@ -173,10 +171,10 @@ def hue_select(img, thresh = (0,255)):
     h_channel = hls[:,:,0]
 
     # 3. create empty array to store the binary output and apply threshold
-    binary_image = np.zeros_like(h_channel)
-    binary_image[(h_channel >= thresh[0]) & (h_channel <= thresh[1])] = 1
+    hue_image = np.zeros_like(h_channel)
+    hue_image[(h_channel > thresh[0]) & (h_channel <= thresh[1])] = 1
 
-    return binary_image
+    return hue_image
 
 def lightness_select(img, thresh = (120,255)):
     
@@ -187,10 +185,10 @@ def lightness_select(img, thresh = (120,255)):
     l_channel = hls[:,:,1]
 
     # 3. Create empty array to store the binary output and apply threshold
-    binary_image = np.zeros_like(l_channel)
-    binary_image[(l_channel >= thresh[0]) & (l_channel <= thresh[1])] = 1
+    lightness_image = np.zeros_like(l_channel)
+    lightness_image[(l_channel > thresh[0]) & (l_channel <= thresh[1])] = 1
 
-    return binary_image
+    return lightness_image
 
 def saturation_select(img, thresh = (100,255)):
 
@@ -198,13 +196,15 @@ def saturation_select(img, thresh = (100,255)):
     hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
     # 2. apply threshold to s channel
-    s_channel = hls[:,:,2]
+    s_channel = img[:,:,2]
 
     # 3. create empty array to store the binary output and apply threshold
-    binary_image = np.zeros_like(s_channel)
-    binary_image[(s_channel >= thresh[0]) & (s_channel <= thresh[1])] = 1
+    sat_image = np.zeros_like(s_channel)
+    sat_image[(s_channel > thresh[0]) & (s_channel <= thresh[1])] = 1
+    # plt.imshow(sat_image)
+    # plt.show()
 
-    return binary_image
+    return sat_image
 
 
 
@@ -220,10 +220,10 @@ def abs_sobel_thresh(img, orient = 'x', sobel_kernel = 3, thresh = (0,255)):
     scaled_sobel = np.uint8(255*abs_sobel/np.max(abs_sobel))
 
     # 3. Create mask of '1's where the sobel magnitude is > thresh_min and < thresh_max
-    binary_image = np.zeros_like(scaled_sobel)
-    binary_image[(scaled_sobel >= thresh[0]) & (scaled_sobel <= thresh[1])] = 1
+    sobel_image = np.zeros_like(scaled_sobel)
+    sobel_image[(scaled_sobel >= thresh[0]) & (scaled_sobel <= thresh[1])] = 1
 
-    return binary_image
+    return sobel_image
 
 
 def mag_sobel(img, sobel_kernel=3, thresh = (0,255)):
@@ -232,23 +232,22 @@ def mag_sobel(img, sobel_kernel=3, thresh = (0,255)):
     sobelx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize = sobel_kernel)
     sobely = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize = sobel_kernel)
 
-    # 3. Magnitude of Sobel
+    # 2. Magnitude of Sobel
     mag_sobel = np.sqrt(sobelx**2 + sobely**2)
 
-    #4. Scaling to 8-bit and converting to np.uint8
+    # 3. Scaling to 8-bit and converting to np.uint8
     scaled_sobel = np.uint8(255*mag_sobel/np.max(mag_sobel))
 
-    # 5. Create mask of '1's where the scaled gradient magnitude is > thresh_min and < thresh_max
-    binary_image = np.zeros_like(scaled_sobel)
-    binary_image[(scaled_sobel >= thresh[0]) & (scaled_sobel <= thresh[1])] = 1
+    # 4. Create mask of '1's where the scaled gradient magnitude is > thresh_min and < thresh_max
+    sobel_mag_image = np.zeros_like(scaled_sobel)
+    sobel_mag_image[(scaled_sobel >= thresh[0]) & (scaled_sobel <= thresh[1])] = 1
     
-    return binary_image
+    return sobel_mag_image
 
 
 # Choose a Sobel kernel size
 
 def dir_threshold(img, sobel_kernel=3, thresh=(0, np.pi/2)):
-    
     
     # 1. Applying the Sobel (taking the derivative)
     sobelx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize = sobel_kernel)
@@ -262,16 +261,17 @@ def dir_threshold(img, sobel_kernel=3, thresh=(0, np.pi/2)):
     sobel_orient = np.arctan2(abs_sobely, abs_sobelx)
     
     # 4. Create mask of '1's where the orientation magnitude is > thresh_min and < thresh_max
-    binary_image = np.zeros_like(sobel_orient)
-    binary_image[(sobel_orient >= thresh[0]) & (sobel_orient <= thresh[1])] = 1
+    dir_image = np.zeros_like(sobel_orient)
+    dir_image[(sobel_orient >= thresh[0]) & (sobel_orient <= thresh[1])] = 1
     
-    return binary_image
+    return dir_image
 
 
 ### Combined Thresholding Function
 
 def combined_threshold(img):
 
+    # convert to hls format and extract channels
     hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     s_channel = hls[:,:,2]
     l_select = hls[:,:,1]
@@ -285,39 +285,41 @@ def combined_threshold(img):
     l_binary = lightness_select(img, thresh = (120, 255))
     s_binary = saturation_select(img, thresh = (100, 255))
 
+    print("h_binary -", h_binary.shape)
+    print("l_binary -", l_binary.shape)
+    print("s_binary - ", s_binary.shape)
+
     ksize = 9
     gradx = abs_sobel_thresh(s_channel, orient='x', sobel_kernel=ksize, thresh=(20, 100))
+    print("gradex - ", gradx.shape)
     # grady = abs_sobel_thresh(gray, orient='y', sobel_kernel=ksize, thresh=(50, 255))
 
-    # for displaying various filters
+    # for displaying various hls separated filters
     f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(25, 10))
-    # f.tight_layout()
-
     ax1.imshow(h_binary)
     ax1.set_title('Hue', fontsize=20)
-
     ax2.imshow(l_binary)
     ax2.set_title('Lightness', fontsize=20)
-
     ax3.imshow(s_binary)
     ax3.set_title('Saturation', fontsize=20)
-
     ax4.imshow(gradx)
     ax4.set_title('X-Gradient', fontsize=20)
-    # plt.show()
+    # save hls separation plots
     plt.savefig('output_images/hls_separation/hls-plots-'+ i)
 
 
     # creating an empty binary image
     combined_binary = np.zeros_like(s_binary)
-    # combined_binary = s_binary
-    combined_binary[((s_binary == 1))] = 1
-    # cv2.imwrite(('output_images/binary/' + i), combined_binary)
+    plt.figure()
+    combined_binary[(s_binary == 1) & (gradx == 1)] = 1
+    plt.imshow(combined_binary)
+
+    mpimg.imsave(('output_images/binary/' + i), combined_binary)
     
     # isolate region of interest
-    height, width = gray.shape
-    # print(height, width)
-    
+    height, width = combined_binary.shape
+    print(height, width)
+
     '''
     mask = np.zeros_like(combined_binary)
     region = np.array([[0, height-1], [width/2, int(height/2)], [width-1, height-1]], dtype=np.int32)
