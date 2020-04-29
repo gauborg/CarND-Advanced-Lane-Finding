@@ -49,9 +49,9 @@ def calibrate_camera(nx, ny):
             imgpoints.append(corners)
             objpoints.append(objp)
 
-            '''
-            After saving the drawn chessboard corners images, comment this section out to stop it from running again...
+            # After saving the drawn chessboard corners on camera images, comment out this section...
 
+            '''
             # draw and display the corners
             img_corners = cv2.drawChessboardCorners(img, (nx, ny), corners, ret)
             # cv2.imshow('img',img_corners)
@@ -80,7 +80,7 @@ def calibrate_camera(nx, ny):
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_size, None, None)
     
     dst = cv2.undistort(img, mtx, dist, None, mtx)
-    cv2.imwrite('output_images/test_undist.jpg',dst)
+    # cv2.imwrite('output_images/test_undist.jpg',dst)
     
     # Save the camera calibration result for use later on
     dist_pickle = {}
@@ -149,7 +149,7 @@ def unwarp_corners(mtx,dist):
     ax1.set_title('Original Image', fontsize=20)
     ax2.imshow(warped)
     ax2.set_title('Perspective and Warped Image', fontsize=20)
-    plt.savefig('output_images/perspective-transform-output.jpg')
+    # plt.savefig('output_images/perspective-transform-output.jpg')
     # plt.show()
 
     return M
@@ -190,13 +190,14 @@ def lightness_select(img, thresh = (120,255)):
 
     return lightness_image
 
+
 def saturation_select(img, thresh = (100,255)):
 
     # 1. convert to hls colorspace
     hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
     # 2. apply threshold to s channel
-    s_channel = img[:,:,2]
+    s_channel = hls[:,:,2]
 
     # 3. create empty array to store the binary output and apply threshold
     sat_image = np.zeros_like(s_channel)
@@ -205,7 +206,6 @@ def saturation_select(img, thresh = (100,255)):
     # plt.show()
 
     return sat_image
-
 
 
 def abs_sobel_thresh(img, orient = 'x', sobel_kernel = 3, thresh = (0,255)):
@@ -245,8 +245,6 @@ def mag_sobel(img, sobel_kernel=3, thresh = (0,255)):
     return sobel_mag_image
 
 
-# Choose a Sobel kernel size
-
 def dir_threshold(img, sobel_kernel=3, thresh=(0, np.pi/2)):
     
     # 1. Applying the Sobel (taking the derivative)
@@ -267,17 +265,26 @@ def dir_threshold(img, sobel_kernel=3, thresh=(0, np.pi/2)):
     return dir_image
 
 
-### Combined Thresholding Function
 
+
+
+
+
+
+
+
+
+
+### Combined Thresholding Function
 def combined_threshold(img):
 
     # convert to hls format and extract channels
     hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     s_channel = hls[:,:,2]
-    l_select = hls[:,:,1]
+    l_channel = hls[:,:,1]
 
     # convert image to grayscale
-    gray = cv2.cvtColor(hls, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
     # applying thresholding and storing different filtered images
 
@@ -285,16 +292,28 @@ def combined_threshold(img):
     l_binary = lightness_select(img, thresh = (120, 255))
     s_binary = saturation_select(img, thresh = (100, 255))
 
-    print("h_binary -", h_binary.shape)
-    print("l_binary -", l_binary.shape)
-    print("s_binary - ", s_binary.shape)
 
     ksize = 9
     gradx = abs_sobel_thresh(s_channel, orient='x', sobel_kernel=ksize, thresh=(20, 100))
-    print("gradex - ", gradx.shape)
-    # grady = abs_sobel_thresh(gray, orient='y', sobel_kernel=ksize, thresh=(50, 255))
+    # dir_binary = dir_threshold(s_channel, sobel_kernel=ksize, thresh=(0.7, 1.3))
+    # grady = abs_sobel_thresh(s_channel, orient='y', sobel_kernel=ksize, thresh=(20, 100))
 
-    # for displaying various hls separated filters
+    # creating an empty binary image
+    combined_binary = np.zeros_like(s_binary)
+    combined_binary[((gradx == 1) | (s_binary == 1)) & ((l_binary == 1) & (s_binary == 1))] = 1
+    # plt.imshow(combined_binary)
+
+    # apply region of interest mask
+    height, width = combined_binary.shape
+    mask = np.zeros_like(combined_binary)
+    region = np.array([[0, height-1], [int(width/2), int(height/2)], [width-1, height-1]], dtype=np.int32)
+    # print(region)
+    cv2.fillPoly(mask, [region], 1)
+
+    masked = cv2.bitwise_and(combined_binary, mask)
+    
+    # This section is only for saving the separated hls plots.
+    # This is commented out after running it once...
     f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(25, 10))
     ax1.imshow(h_binary)
     ax1.set_title('Hue', fontsize=20)
@@ -305,37 +324,43 @@ def combined_threshold(img):
     ax4.imshow(gradx)
     ax4.set_title('X-Gradient', fontsize=20)
     # save hls separation plots
-    plt.savefig('output_images/hls_separation/hls-plots-'+ i)
+    plt.savefig('output_images/test_images_hls_plots/hls-plots-'+ i)
+
+    # save individual images for HSL plots, gradients, magnitude and direction
+    mpimg.imsave(('output_images/test_images_gray/gray-' + i), gray)
+    mpimg.imsave(('output_images/test_images_h_binary/h_binary-' + i), h_binary, cmap = 'gray')
+    mpimg.imsave(('output_images/test_images_l_binary/l_binary-' + i), l_binary, cmap = 'gray')
+    mpimg.imsave(('output_images/test_images_s_binary/s_binary-' + i), s_binary, cmap = 'gray')
+    mpimg.imsave(('output_images/test_images_gradx_binary/gradx-' + i), gradx, cmap = 'gray')
+    # mpimg.imsave(('output_images/test_images_dir_binary/direction-'+i), dir_binary)
+
+    # saving combined thresholded binary image
+    mpimg.imsave(('output_images/test_images_thresholded/combined-' + i), combined_binary, cmap = 'gray')
+
+    # saving masked images
+    mpimg.imsave(('output_images/test_images_masked/masked-' + i), masked, cmap = 'gray')
+    #plt.figure()
+
+    # end of saving images section, comment out above section after saving the images
+
+    return masked
 
 
-    # creating an empty binary image
-    combined_binary = np.zeros_like(s_binary)
-    plt.figure()
-    combined_binary[(s_binary == 1) & (gradx == 1)] = 1
-    plt.imshow(combined_binary)
+def perspective_view(img):
 
-    mpimg.imsave(('output_images/binary/' + i), combined_binary)
-    
-    # isolate region of interest
-    height, width = combined_binary.shape
-    print(height, width)
+    height, width = img.shape
 
-    '''
-    mask = np.zeros_like(combined_binary)
-    region = np.array([[0, height-1], [width/2, int(height/2)], [width-1, height-1]], dtype=np.int32)
-    # print(region)
-    cv2.fillPoly(mask, [region], 1)
 
-    combined_binary = cv2.bitwise_and(combined_binary, mask)
-    cv2.imwrite(('output_images/binary/' + i), combined_binary)
-    '''
 
-    return combined_binary
+    return height
+    # select four points for perspective change
+
+
 
 
 # Let us test our functions on given test images
 directory = os.listdir("test_images/")
-# print(directory)
+print(directory)
 
 
 for i in directory:
@@ -343,7 +368,8 @@ for i in directory:
     img = mpimg.imread(os.path.join("test_images/",i))
 
     thresholded = combined_threshold(img)
-    # undist = cv2.undistort(thresholded, mtx, dist, None, mtx)
-    # mpimg.imsave(('output_images/test_images_output/thresholded-', i),undist)
-    #warped,img_pts,presp_M,persp_M_inv = persp_view(undist)
-    #mpimg.imsave(os.path.join("output_images/warped/",i),warped)
+    undist = cv2.undistort(thresholded, mtx, dist, None, mtx)
+    mpimg.imsave(('output_images/undistorted_test_images_masked/undistorted-'+i), undist, cmap = 'gray')
+    # warped,img_pts,presp_M,persp_M_inv = persp_view(undist)
+    # mpimg.imsave(os.path.join("output_images/warped/",i),warped)
+
