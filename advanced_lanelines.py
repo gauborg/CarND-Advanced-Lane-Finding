@@ -52,6 +52,7 @@ def calibrate_camera(nx, ny):
             # After saving the drawn chessboard corners on camera images, comment out this section...
 
             '''
+
             # draw and display the corners
             img_corners = cv2.drawChessboardCorners(img, (nx, ny), corners, ret)
             # cv2.imshow('img',img_corners)
@@ -65,6 +66,7 @@ def calibrate_camera(nx, ny):
             ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img.shape[1::-1], None, None)
             undist = cv2.undistort(img, mtx, dist, None, mtx)
             cv2.imwrite(('output_images/undistorted_chessboard_corners/'+filename+'-undistorted'+file_extension), undist)
+
             '''
         
 
@@ -79,8 +81,9 @@ def calibrate_camera(nx, ny):
 
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_size, None, None)
     
+    # save an undistorted image
     dst = cv2.undistort(img, mtx, dist, None, mtx)
-    # cv2.imwrite('output_images/test_undist.jpg',dst)
+    cv2.imwrite('output_images/test_undistorted.jpg',dst)
     
     # Save the camera calibration result for use later on
     dist_pickle = {}
@@ -89,7 +92,6 @@ def calibrate_camera(nx, ny):
     pickle.dump(dist_pickle, open( "pickle/wide_dist_pickle.p", "wb" ) )
     
     # Visualize undistortion in one image
-
     f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
     ax1.imshow(img)
     ax1.set_title('Original Image', fontsize=20)
@@ -129,20 +131,21 @@ def unwarp_corners(mtx,dist):
 
         # Grab the image shape
         img_size = (gray.shape[1], gray.shape[0])
+        height, width = gray.shape[0]
 
         # For source points, let us grab the detected outer four corners
         src = np.float32([corners[0], corners[nx-1], corners[-1], corners[-nx]])
-        # For destination points, I'm arbitrarily choosing some points to be
-        # a nice fit for displaying our warped result 
-        # again, not exact, but close enough for our purposes
-        dst = np.float32([[offset, offset], [img_size[0]-offset, offset],\
-                          [img_size[0]-offset, img_size[1]-offset],\
-                          [offset, img_size[1]-offset]])
-        # Given src and dst points, calculate the perspective transform matrix
+        
+        # For destination points, we will arbitrarily choose some points to be a fit for displaying our warped result
+        dst = np.float32([[offset, offset], [width-offset, offset], [width-offset, height-offset], [offset, height-offset]])
+        
+        # calculate the perspective transform matrix
         M = cv2.getPerspectiveTransform(src, dst)
+
         # Warp the image using OpenCV warpPerspective()
         warped = cv2.warpPerspective(undist, M, img_size)
         
+    '''
     # vizualize the data
     f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
     ax1.imshow(img)
@@ -151,6 +154,7 @@ def unwarp_corners(mtx,dist):
     ax2.set_title('Perspective and Warped Image', fontsize=20)
     # plt.savefig('output_images/perspective-transform-output.jpg')
     # plt.show()
+    '''
 
     return M
 
@@ -292,7 +296,6 @@ def combined_threshold(img):
     l_binary = lightness_select(img, thresh = (120, 255))
     s_binary = saturation_select(img, thresh = (100, 255))
 
-
     ksize = 9
     gradx = abs_sobel_thresh(s_channel, orient='x', sobel_kernel=ksize, thresh=(20, 100))
     # dir_binary = dir_threshold(s_channel, sobel_kernel=ksize, thresh=(0.7, 1.3))
@@ -312,8 +315,10 @@ def combined_threshold(img):
 
     masked = cv2.bitwise_and(combined_binary, mask)
     
+    '''
+    # THIS SECTION WILL BE COMMENTED AFTER RUNNING ONCE...
     # This section is only for saving the separated hls plots.
-    # This is commented out after running it once...
+
     f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(25, 10))
     ax1.imshow(h_binary)
     ax1.set_title('Hue', fontsize=20)
@@ -342,20 +347,48 @@ def combined_threshold(img):
     #plt.figure()
 
     # end of saving images section, comment out above section after saving the images
+    # THIS SECTION WILL BE COMMENTED OUT AFTER RUNNING IT ONCE ...
+    '''
 
     return masked
 
 
 def perspective_view(img):
 
-    height, width = img.shape
+    img_size = (img.shape[1], img.shape[0])
 
+    # image points extracted from image approximately
+    bottom_left = [210, 720]
+    bottom_right = [1100, 720]
+    top_left = [570, 470]
+    top_right = [720, 470]
 
+    src = np.float32([bottom_left, bottom_right, top_right, top_left])
 
-    return height
-    # select four points for perspective change
+    pts = np.array([bottom_left, bottom_right, top_right, top_left])
+    pts = pts.reshape((-1, 1, 2))
+    # create a copy of original img
+    img_pts = img.copy()
+    cv2.polylines(img_pts, [pts], True, (255, 0, 0), thickness = 3)
 
+    # choose four points in warped image so that the lines should appear as parallel
+    bottom_left_dst = [320, 720]
+    bottom_right_dst = [920, 720]
+    top_left_dst = [320, 1]
+    top_right_dst = [920, 1]
 
+    dst = np.float32([bottom_left_dst, bottom_right_dst, top_right_dst, top_left_dst])
+
+    # apply perspective transform
+    M = cv2.getPerspectiveTransform(src, dst)
+
+    # compute inverse perspective transform
+    Minv = cv2.getPerspectiveTransform(dst, src)
+
+    # warp the image using perspective transform M
+    warped = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
+
+    return warped, img_pts, M, Minv
 
 
 # Let us test our functions on given test images
@@ -367,9 +400,49 @@ for i in directory:
 
     img = mpimg.imread(os.path.join("test_images/",i))
 
+    # apply combined threshold and get the masked thresholded image
     thresholded = combined_threshold(img)
+
+    # undistort the image
     undist = cv2.undistort(thresholded, mtx, dist, None, mtx)
     mpimg.imsave(('output_images/undistorted_test_images_masked/undistorted-'+i), undist, cmap = 'gray')
-    # warped,img_pts,presp_M,persp_M_inv = persp_view(undist)
-    # mpimg.imsave(os.path.join("output_images/warped/",i),warped)
+    warped,img_points, presp_M,persp_M_inv = perspective_view(undist)
+    mpimg.imsave(('output_images/test_images_warped/warped-'+i), warped, cmap = 'gray')
 
+
+'''
+
+# save information for mtx and dist in a new pickle file for one image
+img = mpimg.imread("test_images/straight_lines1.jpg")
+undist = cv2.undistort(thresholded, mtx, dist, None, mtx)
+warped,img_pts, presp_M,persp_M_inv = perspective_view(undist)
+threshold = combined_threshold(img)
+mpimg.imsave(("output_images/with_pts_"+i), img_pts, cmap = 'gray')
+undist = cv2.undistort(threshold, mtx, dist, None, mtx)
+thresh_warped, thresh_img_pts, persp_M, persp_Minv = perspective_view(undist)
+
+
+# plotting images against each other for comparison
+fig = plt.figure()
+f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize = (25, 10))
+ax1.imshow(img_pts)
+ax1.set_title('Original Image with Pts', fontsize = 20)
+ax2.imshow(warped, cmap = 'gray')
+ax2.set_title('Original Image with Pts', fontsize = 20)
+ax3.imshow(thresh_img_pts, cmap = 'gray')
+ax3.set_title('Thresholded Image with points', fontsize = 20)
+ax4.imshow(thresh_warped, cmap = 'gray')
+ax4.set_title('Undistorted and Warped Image', fontsize = 20)
+plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
+
+
+
+# save new pickle for test images from car's camera
+dist_pickle = {}
+dist_pickle["mtx"] = mtx
+dist_pickle["dist"] = dist
+dist_pickle["persp_M"] = persp_M
+dist_pickle["persp_Minv"] = persp_Minv
+pickle.dump(dist_pickle, open("output_images/test_images_dist_pickle.p", "wb"))
+
+'''
