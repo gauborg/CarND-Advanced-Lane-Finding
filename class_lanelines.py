@@ -26,7 +26,7 @@ class LaneLines():
         self.right_fit = prev_right_fit
 
 
-    def find_lane_pixels(self):
+    def find_lane_pixels(self, previous_left_fit, previous_right_fit):
         # Take a histogram of the bottom half of the image
         histogram = np.sum(self.binary_warped[self.binary_warped.shape[0]//2:,:], axis=0)
         # Create an output image to draw on and visualize the result
@@ -41,7 +41,7 @@ class LaneLines():
         # Choose the number of sliding windows
         nwindows = 10
         # Set the width of the windows +/- margin
-        margin = 100
+        margin = 50
         # Set minimum number of pixels found to recenter window
         minpix = 50
 
@@ -105,23 +105,31 @@ class LaneLines():
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
-        # Fit a second order polynomial to each using `np.polyfit`
-        self.left_fit = np.polyfit(lefty, leftx, 2)
-        self.right_fit = np.polyfit(righty, rightx, 2)
+
+        try:
+            self.left_fit = np.polyfit(lefty, leftx, 2)
+            self.right_fit = np.polyfit(righty, rightx, 2)
+        # incase any of the leftx, rightx, lefty, leftx vectors are empty
+        except TypeError:
+            self.left_fit = previous_left_fit
+            self.right_fit = previous_right_fit
+
 
         # Generate x and y values for plotting
         # ploty = np.linspace(0, self.binary_warped.shape[0]-1, self.binary_warped.shape[0] )
         try:
             self.left_fitx = self.left_fit[0]*self.ploty**2 + self.left_fit[1]*self.ploty + self.left_fit[2]
             self.right_fitx = self.right_fit[0]*self.ploty**2 + self.right_fit[1]*self.ploty + self.right_fit[2]
-        except TypeError:
+        except IndexError:
             # Avoids an error if `left` and `right_fit` are still none or incorrect
             print('The function failed to fit a line!')
-            left_fitx = 1*self.ploty**2 + 1*self.ploty
-            right_fitx = 1*self.ploty**2 + 1*self.ploty
-            
+            self.left_fitx = 1*self.ploty**2 + 1*self.ploty
+            self.right_fitx = 1*self.ploty**2 + 1*self.ploty
+
         #print(self.left_fit)
         #print(self.right_fit)
+
+
 
         '''
         ## Visualization ##

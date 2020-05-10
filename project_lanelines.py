@@ -119,15 +119,25 @@ def advanced_lanelines(img):
     # apply perspective transform on the thresholded image
     warped, M, Minv = perspective_view(undist_thresholded)
 
+    # these will be empty for the first iteration and they will store the values of lane fits from previous iterations
     previous_left_fit = []
     previous_right_fit = []
 
+    # initialize the lanelines class where 
     binary_warped = LaneLines(warped, previous_left_fit, previous_right_fit)
-    out_img, leftfit, rightfit = binary_warped.find_lane_pixels()
+
+    # calculate the left and right lane fits
+    out_img, leftfit, rightfit = binary_warped.find_lane_pixels(previous_left_fit, previous_right_fit)
+
+    # get the left and right lane radii 
     left_radius, right_radius = binary_warped.measure_curvature_pixels()
-    print("Left = ", left_radius)
-    print("Right = ", right_radius)
-    mean = 0.5*(left_radius+right_radius)
+
+    mean = round(0.5*(left_radius+right_radius), 2)
+    road_curvature = "Road Curvature = " + str(mean) + "m"
+
+    # print("Left = ", left_radius)
+    # print("Right = ", right_radius)
+    # print("Road Curvature = ", mean)
 
     warp_zero = np.zeros_like(warped).astype(np.uint8)
     color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -139,26 +149,30 @@ def advanced_lanelines(img):
 
     # Draw the lane onto the warped blank image
     cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
-
+    
     # Warp the blank back to original image space using inverse perspective matrix (Minv)
     unwarped = cv2.warpPerspective(color_warp, Minv, (img.shape[1], img.shape[0]))
 
     # Combine the result with the original image
     result = cv2.addWeighted(undist_original, 1, unwarped, 0.3, 0)
-    cv2.putText(result, mean, (100, 90), cv2.FONT_HERSHEY_SIMPLEX, 2, (255,0,0), thickness=2)
+    # this prints the value of road curvature onto the output image
+    cv2.putText(result, road_curvature, (80, 90), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255,255,255), thickness=2)
+
 
     return result
 
 
 
-'''
 video_binary_output = 'video-output.mp4'
 clip1 = VideoFileClip("project_video.mp4")
 white_clip = clip1.fl_image(advanced_lanelines) # NOTE: this function expects color images!!
 white_clip.write_videofile(video_binary_output, audio=False)
-'''
 
+
+'''
 test_image = mpimg.imread("test_images/test1.jpg")
 lane_image = advanced_lanelines(test_image)
+mpimg.imsave("output_images/test1-lanelines.jpg", lane_image)
 plt.imshow(lane_image)
 plt.show()
+'''
