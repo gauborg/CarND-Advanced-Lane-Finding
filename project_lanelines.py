@@ -122,14 +122,15 @@ def advanced_lanelines(img):
     # these will be empty for the first iteration and they will store the values of lane fits from previous iterations
     previous_left_fit = []
     previous_right_fit = []
+    lane_detected = False
 
     # initialize the lanelines class where 
     binary_warped = LaneLines(warped, previous_left_fit, previous_right_fit)
 
     # calculate the left and right lane fits
-    out_img, leftfit, rightfit = binary_warped.find_lane_pixels(previous_left_fit, previous_right_fit)
+    out_img, leftfit, rightfit = binary_warped.find_lane_pixels()
 
-    # get the left and right lane radii 
+    # get the left and right lane radii
     left_radius, right_radius = binary_warped.measure_curvature_pixels()
 
     mean = round(0.5*(left_radius+right_radius), 2)

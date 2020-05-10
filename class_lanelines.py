@@ -26,7 +26,9 @@ class LaneLines():
         self.right_fit = prev_right_fit
 
 
-    def find_lane_pixels(self, previous_left_fit, previous_right_fit):
+    def find_lane_pixels(self):
+        
+        # if lanelines are not detected in the previous iteration
         # Take a histogram of the bottom half of the image
         histogram = np.sum(self.binary_warped[self.binary_warped.shape[0]//2:,:], axis=0)
         # Create an output image to draw on and visualize the result
@@ -68,24 +70,24 @@ class LaneLines():
             win_xleft_high = leftx_current + margin
             win_xright_low = rightx_current - margin
             win_xright_high = rightx_current + margin
-            
+                
             # Draw the windows on the visualization image
             cv2.rectangle(out_img,(win_xleft_low,win_y_low),
             (win_xleft_high,win_y_high),(0,255,0), 2) 
             cv2.rectangle(out_img,(win_xright_low,win_y_low),
             (win_xright_high,win_y_high),(0,255,0), 2) 
-            
+
             # Identify the nonzero pixels in x and y within the window #
             good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & 
             (nonzerox >= win_xleft_low) &  (nonzerox < win_xleft_high)).nonzero()[0]
             good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & 
             (nonzerox >= win_xright_low) &  (nonzerox < win_xright_high)).nonzero()[0]
-            
+                
             # Append these indices to the lists
             left_lane_inds.append(good_left_inds)
             right_lane_inds.append(good_right_inds)
-            
-            # If you found > minpix pixels, recenter next window on their mean position
+                
+            # If we find > minpix pixels, recenter next window on their mean position
             if len(good_left_inds) > minpix:
                 leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
             if len(good_right_inds) > minpix:        
@@ -105,15 +107,9 @@ class LaneLines():
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
-
-        try:
-            self.left_fit = np.polyfit(lefty, leftx, 2)
-            self.right_fit = np.polyfit(righty, rightx, 2)
-        # incase any of the leftx, rightx, lefty, leftx vectors are empty
-        except TypeError:
-            self.left_fit = previous_left_fit
-            self.right_fit = previous_right_fit
-
+        # determine best fitting 2nd order polynomials for lanelines
+        self.left_fit = np.polyfit(lefty, leftx, 2)
+        self.right_fit = np.polyfit(righty, rightx, 2)
 
         # Generate x and y values for plotting
         # ploty = np.linspace(0, self.binary_warped.shape[0]-1, self.binary_warped.shape[0] )
@@ -128,8 +124,6 @@ class LaneLines():
 
         #print(self.left_fit)
         #print(self.right_fit)
-
-
 
         '''
         ## Visualization ##
