@@ -11,7 +11,7 @@ import cv2
 class LaneLines():
 
     # constructor
-    def __init__(self, binary_warped):
+    def __init__(self, binary_warped, prev_left_fit, prev_right_fit):
         # incoming binary image
         self.binary_warped = binary_warped
         # was the line detected in the last iteration?
@@ -22,8 +22,8 @@ class LaneLines():
         self.ploty = np.linspace(0, self.binary_warped.shape[0]-1, self.binary_warped.shape[0])
         # no of windows
         # previous left and right fits which worked
-        #self.left_fit = prev_left_fit
-        #self.right_fit = prev_right_fit
+        self.left_fit = prev_left_fit
+        self.right_fit = prev_right_fit
 
 
     def find_lane_pixels(self):
@@ -123,6 +123,7 @@ class LaneLines():
         #print(self.left_fit)
         #print(self.right_fit)
 
+        '''
         ## Visualization ##
         # Colors in the left and right lane regions
         out_img[lefty, leftx] = [255, 0, 0]
@@ -131,6 +132,7 @@ class LaneLines():
         # Plots the left and right polynomials on the lane lines
         plt.plot(self.left_fitx, self.ploty, color='yellow')
         plt.plot(self.right_fitx, self.ploty, color='yellow')
+        '''
 
         return out_img, self.left_fit, self.right_fit
 
