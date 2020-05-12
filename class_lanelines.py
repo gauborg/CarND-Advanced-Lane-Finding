@@ -11,11 +11,12 @@ import cv2
 class LaneLines():
 
     # constructor
-    def __init__(self, binary_warped, prev_left_fit, prev_right_fit):
+    def __init__(self, binary_warped, prev_left_fit, prev_right_fit, previous_detection):
         # incoming binary image
         self.binary_warped = binary_warped
         # was the line detected in the last iteration?
-        self.detected = False
+        self.detected = previous_detection
+        print(self.detected)
         # x values of the last n fits of the line
         self.recent_xfitted = []
         # creating the array for binary
@@ -24,11 +25,14 @@ class LaneLines():
         # previous left and right fits which worked
         self.left_fit = prev_left_fit
         self.right_fit = prev_right_fit
+        # print("Constructor Values, Left = ", self.left_fit)
+        # print("Constructor Values, Right = ", self.right_fit)
 
 
-    def find_lane_pixels(self):
-        
-        # if lanelines are not detected in the previous iteration
+    # function for detecting lanelines manually
+    def sliding_windows(self):
+
+        # This part creates the histogram if lanelines are not detected in the previous iteration
         # Take a histogram of the bottom half of the image
         histogram = np.sum(self.binary_warped[self.binary_warped.shape[0]//2:,:], axis=0)
         # Create an output image to draw on and visualize the result
@@ -39,11 +43,12 @@ class LaneLines():
         leftx_base = np.argmax(histogram[:midpoint])
         rightx_base = np.argmax(histogram[midpoint:]) + midpoint
 
+
         # HYPERPARAMETERS
         # Choose the number of sliding windows
         nwindows = 10
         # Set the width of the windows +/- margin
-        margin = 50
+        margin = 100
         # Set minimum number of pixels found to recenter window
         minpix = 50
 
@@ -70,7 +75,7 @@ class LaneLines():
             win_xleft_high = leftx_current + margin
             win_xright_low = rightx_current - margin
             win_xright_high = rightx_current + margin
-                
+                    
             # Draw the windows on the visualization image
             cv2.rectangle(out_img,(win_xleft_low,win_y_low),
             (win_xleft_high,win_y_high),(0,255,0), 2) 
@@ -82,11 +87,11 @@ class LaneLines():
             (nonzerox >= win_xleft_low) &  (nonzerox < win_xleft_high)).nonzero()[0]
             good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & 
             (nonzerox >= win_xright_low) &  (nonzerox < win_xright_high)).nonzero()[0]
-                
+                    
             # Append these indices to the lists
             left_lane_inds.append(good_left_inds)
             right_lane_inds.append(good_right_inds)
-                
+                    
             # If we find > minpix pixels, recenter next window on their mean position
             if len(good_left_inds) > minpix:
                 leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
@@ -111,6 +116,7 @@ class LaneLines():
         self.left_fit = np.polyfit(lefty, leftx, 2)
         self.right_fit = np.polyfit(righty, rightx, 2)
 
+
         # Generate x and y values for plotting
         # ploty = np.linspace(0, self.binary_warped.shape[0]-1, self.binary_warped.shape[0] )
         try:
@@ -121,9 +127,71 @@ class LaneLines():
             print('The function failed to fit a line!')
             self.left_fitx = 1*self.ploty**2 + 1*self.ploty
             self.right_fitx = 1*self.ploty**2 + 1*self.ploty
+        
+        return self.left_fit, self.right_fit
 
-        #print(self.left_fit)
-        #print(self.right_fit)
+    
+    # for searching from a prior region
+    def search_from_prior(self):
+
+        # HYPERPARAMETER
+        # Choose the width of the margin around the previous polynomial to search
+        # The quiz grader expects 100 here, but feel free to tune on your own!
+        search_margin = 100
+
+        # Grab activated pixels
+        nonzero = self.binary_warped.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+            
+        ### TO-DO: Set the area of search based on activated x-values ###
+        ### within the +/- margin of our polynomial function ###
+        ### Hint: consider the window areas for the similarly named variables ###
+        ### in the previous quiz, but change the windows to our new search area ###
+
+        left_lane_inds = ((nonzerox > (self.left_fit[0]*(nonzeroy**2) + self.left_fit[1]*nonzeroy + 
+                        self.left_fit[2] - search_margin)) & (nonzerox < (self.left_fit[0]*(nonzeroy**2) + 
+                        self.left_fit[1]*nonzeroy + self.left_fit[2] + search_margin)))
+        right_lane_inds = ((nonzerox > (self.right_fit[0]*(nonzeroy**2) + self.right_fit[1]*nonzeroy + 
+                        self.right_fit[2] - search_margin)) & (nonzerox < (self.right_fit[0]*(nonzeroy**2) + 
+                        self.right_fit[1]*nonzeroy + self.right_fit[2] + search_margin)))
+        
+        # Again, extract left and right line pixel positions
+
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
+
+
+        # check if the arrays are empty, i.e. no pixels are detected
+        if ((leftx.size == 0) | (lefty.size == 0)):
+            detection_in_current = False
+        elif ((rightx.size == 0) | (righty.size == 0)):
+            detection_in_current = False
+        else:
+            detection_in_current = True
+        
+        # if above condition is true, then we calculate lanelines based on above x and y, else we execute function sliding widows
+        if (detection_in_current):
+            print("detection in current = ", detection_in_current)
+            # calculate current fits if lanelines are detected
+            self.left_fit = np.polyfit(lefty, leftx, 2)
+            self.right_fit = np.polyfit(righty, rightx, 2)
+
+            try:
+                self.left_fitx = self.left_fit[0]*self.ploty**2 + self.left_fit[1]*self.ploty + self.left_fit[2]
+                self.right_fitx = self.right_fit[0]*self.ploty**2 + self.right_fit[1]*self.ploty + self.right_fit[2]
+            except IndexError:
+                # Avoids an error if `left` and `right_fit` are still none or incorrect
+                print('The function failed to fit a line!')
+                self.left_fitx = 1*self.ploty**2 + 1*self.ploty
+                self.right_fitx = 1*self.ploty**2 + 1*self.ploty
+
+        else:
+            self.left_fit, self.right_fit = self.sliding_windows()
+            print("sliding windows from search prior was called")
+        
 
         '''
         ## Visualization ##
@@ -135,8 +203,25 @@ class LaneLines():
         plt.plot(self.left_fitx, self.ploty, color='yellow')
         plt.plot(self.right_fitx, self.ploty, color='yellow')
         '''
+        self.detected = detection_in_current
 
-        return out_img, self.left_fit, self.right_fit
+        return self.left_fit, self.right_fit
+
+
+    def find_lane_pixels(self):
+
+        out_img = np.dstack((self.binary_warped, self.binary_warped, self.binary_warped))
+
+        if (self.detected):
+            self.left_fit, self.right_fit = self.search_from_prior()
+            print("Search from prior from find_pixels executed!")
+        else:
+            self.left_fit, self.right_fit = self.sliding_windows()
+            self.detected = True
+            print("Sliding window executed!")
+
+        return out_img, self.left_fit, self.right_fit, self.detected
+
 
 
     def measure_curvature_pixels(self):
@@ -157,6 +242,5 @@ class LaneLines():
         ##### TO-DO: Implement the calculation of R_curve in pixels (radius of curvature) #####
         left_curverad = (1 + ((2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])  ## Implement the calculation of the left line here
         right_curverad = (1 + ((2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
-
 
         return left_curverad, right_curverad

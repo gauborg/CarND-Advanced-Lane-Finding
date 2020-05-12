@@ -10,6 +10,7 @@ import moviepy
 import imageio
 from moviepy.editor import VideoFileClip
 
+
 dist_pickle = pickle.load( open( "pickle/test_images_dist_pickle.p", "rb" ) )
 mtx = dist_pickle["mtx"]
 dist = dist_pickle["dist"]
@@ -102,10 +103,7 @@ def perspective_view(img):
     return warped, M, Minv
 
 
-
 def advanced_lanelines(img):
-
-    from class_lanelines import LaneLines
 
     # undistort the original image using stored values from pickle
     undist_original = cv2.undistort(img, mtx, dist, None, mtx)
@@ -120,15 +118,22 @@ def advanced_lanelines(img):
     warped, M, Minv = perspective_view(undist_thresholded)
 
     # these will be empty for the first iteration and they will store the values of lane fits from previous iterations
-    previous_left_fit = []
-    previous_right_fit = []
-    lane_detected = False
+    # declaring lane fits as global variables so that they can be modified from anywhere in the code
 
-    # initialize the lanelines class where 
-    binary_warped = LaneLines(warped, previous_left_fit, previous_right_fit)
+    global previous_left_fit
+    global previous_right_fit
+    global previous_detection
+
+
+    # initialize the lanelines class by giving inputs from previous iteration
+    binary_warped = LaneLines(warped, previous_left_fit, previous_right_fit, previous_detection)
 
     # calculate the left and right lane fits
-    out_img, leftfit, rightfit = binary_warped.find_lane_pixels()
+    out_img, leftfit, rightfit, detected = binary_warped.find_lane_pixels()
+
+    previous_left_fit = leftfit
+    previous_right_fit = rightfit
+    previous_detection = detected
 
     # get the left and right lane radii
     left_radius, right_radius = binary_warped.measure_curvature_pixels()
@@ -159,10 +164,16 @@ def advanced_lanelines(img):
     # this prints the value of road curvature onto the output image
     cv2.putText(result, road_curvature, (80, 90), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255,255,255), thickness=2)
 
-
     return result
 
 
+
+# define variables needed in the global scope
+previous_left_fit = []
+previous_right_fit = []
+previous_detection = False
+
+from class_lanelines import LaneLines
 
 video_binary_output = 'video-output.mp4'
 clip1 = VideoFileClip("project_video.mp4")
