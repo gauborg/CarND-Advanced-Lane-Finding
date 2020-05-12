@@ -175,16 +175,25 @@ previous_detection = False
 
 from class_lanelines import LaneLines
 
+
+# video pipeline
 video_binary_output = 'video-output.mp4'
 clip1 = VideoFileClip("project_video.mp4")
 white_clip = clip1.fl_image(advanced_lanelines) # NOTE: this function expects color images!!
 white_clip.write_videofile(video_binary_output, audio=False)
 
 
+
+# image pipeline - run for two successive images"
 '''
 test_image = mpimg.imread("test_images/test1.jpg")
 lane_image = advanced_lanelines(test_image)
-mpimg.imsave("output_images/test1-lanelines.jpg", lane_image)
 plt.imshow(lane_image)
 plt.show()
+
+test_image2 = mpimg.imread("test_images/test2.jpg")
+lane_image2 = advanced_lanelines(test_image2)
+plt.imshow(lane_image2)
+plt.show()
+
 '''

@@ -41,7 +41,6 @@ class LaneLines():
         leftx_base = np.argmax(histogram[:midpoint])
         rightx_base = np.argmax(histogram[midpoint:]) + midpoint
         
-
         # HYPERPARAMETERS
         # Choose the number of sliding windows
         nwindows = 10
@@ -73,7 +72,8 @@ class LaneLines():
             win_xleft_high = leftx_current + margin
             win_xright_low = rightx_current - margin
             win_xright_high = rightx_current + margin
-                    
+            
+            # VISUALIZATION
             # Draw the windows on the visualization image
             cv2.rectangle(out_img,(win_xleft_low,win_y_low),
             (win_xleft_high,win_y_high),(0,255,0), 2) 
@@ -125,8 +125,22 @@ class LaneLines():
             print('The function failed to fit a line!')
             self.left_fitx = 1*self.ploty**2 + 1*self.ploty
             self.right_fitx = 1*self.ploty**2 + 1*self.ploty
+
+
+        ## Visualization ##
+        ## Uncommment only when running on test images"
+        '''
+        # Colors in the left and right lane regions
+        out_img[lefty, leftx] = [255, 0, 0]
+        out_img[righty, rightx] = [0, 0, 255]
+        # Plots the left and right polynomials on the lane lines
+        plt.plot(self.left_fitx, self.ploty, color='yellow')
+        plt.plot(self.right_fitx, self.ploty, color='yellow')
+        plt.imshow(out_img)
+        plt.show()
+        '''
         
-        return self.left_fit, self.right_fit
+        return out_img, self.left_fit, self.right_fit
 
     
     # for searching from a prior region
@@ -135,6 +149,8 @@ class LaneLines():
         # HYPERPARAMETER
         # Choose the width of the margin around the previous polynomial to search
         # The quiz grader expects 100 here, but feel free to tune on your own!
+        out_img = np.dstack((self.binary_warped, self.binary_warped, self.binary_warped))
+        
         search_margin = 100
 
         # Grab activated pixels
@@ -187,23 +203,44 @@ class LaneLines():
                 self.right_fitx = 1*self.ploty**2 + 1*self.ploty
 
         else:
+            # if no lanelines are found using search from prior option, use sliding windows functionality
             self.left_fit, self.right_fit = self.sliding_windows()
-            print("sliding windows from search prior was called")
+            print("sliding windows from search prior was called...")
         
-
-        '''
+        
         ## Visualization ##
-        # Colors in the left and right lane regions
-        out_img[lefty, leftx] = [255, 0, 0]
-        out_img[righty, rightx] = [0, 0, 255]
-
-        # Plots the left and right polynomials on the lane lines
-        plt.plot(self.left_fitx, self.ploty, color='yellow')
-        plt.plot(self.right_fitx, self.ploty, color='yellow')
+        # IMPORTANT - This should be commented out for the video section, else it will show an image for every frame of the video
         '''
+        # Colors in the left and right lane regions
+        out_img = np.dstack((self.binary_warped, self.binary_warped, self.binary_warped))*255
+        window_img = np.zeros_like(out_img)
+        # Color in left and right line pixels
+        out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
+        out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
+
+        # Generate a polygon to illustrate the search window area
+        # And recast the x and y points into usable format for cv2.fillPoly()
+        left_line_window1 = np.array([np.transpose(np.vstack([self.left_fitx-search_margin, self.ploty]))])
+        left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([self.left_fitx+search_margin, 
+                                self.ploty])))])
+        left_line_pts = np.hstack((left_line_window1, left_line_window2))
+        right_line_window1 = np.array([np.transpose(np.vstack([self.right_fitx-search_margin, self.ploty]))])
+        right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([self.right_fitx+search_margin, 
+                                self.ploty])))])
+        right_line_pts = np.hstack((right_line_window1, right_line_window2))
+
+        # Draw the lane onto the warped blank image
+        cv2.fillPoly(window_img, np.int_([left_line_pts]), (0,255, 0))
+        cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,255, 0))
+        out_img = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
+        plt.figure(1)
+        plt.imshow(out_img)
+        plt.show()
+        '''
+
         self.detected = detection_in_current
 
-        return self.left_fit, self.right_fit
+        return out_img, self.left_fit, self.right_fit
 
 
     def find_lane_pixels(self):
@@ -211,14 +248,15 @@ class LaneLines():
         out_img = np.dstack((self.binary_warped, self.binary_warped, self.binary_warped))
 
         if (self.detected):
-            self.left_fit, self.right_fit = self.search_from_prior()
+            out_img, self.left_fit, self.right_fit = self.search_from_prior()
             print("Search from prior from find_pixels executed!")
         else:
-            self.left_fit, self.right_fit = self.sliding_windows()
+            out_img, self.left_fit, self.right_fit = self.sliding_windows()
             self.detected = True
             print("Sliding window executed!")
 
         return out_img, self.left_fit, self.right_fit, self.detected
+
 
 
 
