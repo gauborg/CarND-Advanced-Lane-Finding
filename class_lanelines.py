@@ -25,8 +25,6 @@ class LaneLines():
         # previous left and right fits which worked
         self.left_fit = prev_left_fit
         self.right_fit = prev_right_fit
-        # print("Constructor Values, Left = ", self.left_fit)
-        # print("Constructor Values, Right = ", self.right_fit)
 
 
     # function for detecting lanelines manually
@@ -42,7 +40,7 @@ class LaneLines():
         midpoint = np.int(histogram.shape[0]//2)
         leftx_base = np.argmax(histogram[:midpoint])
         rightx_base = np.argmax(histogram[midpoint:]) + midpoint
-
+        
 
         # HYPERPARAMETERS
         # Choose the number of sliding windows
