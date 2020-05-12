@@ -96,9 +96,53 @@ More images are saved in the *output_images/test_images_masked* folder.
 
 **4. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.**
 
+We define a function *perspective_view* in textbox 7 which takes as input our thresholded binary image. This function applies a perspective transform on the image. This gives us a bird's eye view of road so that the lanelines appear from the top and parallel. We select the endpoints of the laneline from a image approximately as the *src* points. We specify some destination *dst* points in the warped image so that our laneline will appear as parallel.
 
+After this, we use the function [cv2.perspectiveTransform()](https://docs.opencv.org/2.4/modules/imgproc/doc/geometric_transformations.html#getperspectivetransform) from OpenCV library by providing *src* and *dst* points as the inputs. This function calculates the 3*3 transformation matrix. We use this transformation matrix in a function called [cv2.warpPerspective()](https://docs.opencv.org/2.4/modules/imgproc/doc/geometric_transformations.html#warpperspective) to get the warped (transformed iamge) of our lanelines.
+
+Here is the code I used in the *perspective_view()* function -
+
+```python
+img_size = (img.shape[1], img.shape[0])
+
+# image points extracted from image approximately
+bottom_left = [210, 720]
+bottom_right = [1100, 720]
+top_left = [570, 470]
+top_right = [720, 470]
+src = np.float32([bottom_left, bottom_right, top_right, top_left])
+
+pts = np.array([bottom_left, bottom_right, top_right, top_left], np.int32)
+pts = pts.reshape((-1, 1, 2))
+# create a copy of original img
+imgpts = img.copy()
+cv2.polylines(imgpts, [pts], True, (255, 0, 0), thickness = 3)
+
+# choose four points in warped image so that the lines should appear as parallel
+bottom_left_dst = [320, 720]
+bottom_right_dst = [920, 720]
+top_left_dst = [320, 1]
+top_right_dst = [920, 1]
+
+dst = np.float32([bottom_left_dst, bottom_right_dst, top_right_dst, top_left_dst])
+
+# apply perspective transform
+M = cv2.getPerspectiveTransform(src, dst)
+
+# compute inverse perspective transform
+Minv = cv2.getPerspectiveTransform(dst, src)
+
+# warp the image using perspective transform M
+warped = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
+```
+Here is an example of a perspective transform image along with the original image. It shows us the original image along with undistorted, original warped and binary warped images.
+
+![image](markdown_images/perspective_transform_test2.jpg)
+
+Additional images of perspective transform can be found in the folder *output_images/tets_images_binary_warped*. (I have included only binary perspective transformed images here.)
 
 **5. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?**
+
 
 
 
