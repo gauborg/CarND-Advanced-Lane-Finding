@@ -16,7 +16,6 @@ class LaneLines():
         self.binary_warped = binary_warped
         # was the line detected in the last iteration?
         self.detected = previous_detection
-        print(self.detected)
         # x values of the last n fits of the line
         self.recent_xfitted = []
         # creating the array for binary
@@ -177,7 +176,6 @@ class LaneLines():
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
-
         # check if the arrays are empty, i.e. no pixels are detected
         if ((leftx.size == 0) | (lefty.size == 0)):
             detection_in_current = False
@@ -188,7 +186,8 @@ class LaneLines():
         
         # if above condition is true, then we calculate lanelines based on above x and y, else we execute function sliding widows
         if (detection_in_current):
-            print("detection in current = ", detection_in_current)
+            # print("detection in current = ", detection_in_current)
+            
             # calculate current fits if lanelines are detected
             self.left_fit = np.polyfit(lefty, leftx, 2)
             self.right_fit = np.polyfit(righty, rightx, 2)
@@ -204,7 +203,7 @@ class LaneLines():
 
         else:
             # if no lanelines are found using search from prior option, use sliding windows functionality
-            self.left_fit, self.right_fit = self.sliding_windows()
+            out_img, self.left_fit, self.right_fit = self.sliding_windows()
             print("sliding windows from search prior was called...")
         
         
@@ -237,7 +236,6 @@ class LaneLines():
         plt.imshow(out_img)
         plt.show()
         '''
-
         self.detected = detection_in_current
 
         return out_img, self.left_fit, self.right_fit
@@ -259,7 +257,6 @@ class LaneLines():
 
 
 
-
     def measure_curvature_pixels(self):
         
         # Calculates the curvature of polynomial functions in pixels.
@@ -272,6 +269,9 @@ class LaneLines():
         ym_per_pix = 30/720 # meters per pixel in y dimension
         xm_per_pix = 3.7/700 # meters per pixel in x dimension
 
+        left_fitx = self.left_fit[0]*self.ploty**2 + self.left_fit[1]*self.ploty + self.left_fit[2]
+        right_fitx = self.right_fit[0]*self.ploty**2 + self.right_fit[1]*self.ploty + self.right_fit[2]
+
         left_fit_cr = np.polyfit(self.ploty*ym_per_pix, self.left_fitx*xm_per_pix, 2)
         right_fit_cr = np.polyfit(self.ploty*ym_per_pix, self.right_fitx*xm_per_pix, 2)
         
@@ -279,4 +279,8 @@ class LaneLines():
         left_curverad = (1 + ((2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])  ## Implement the calculation of the left line here
         right_curverad = (1 + ((2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
 
-        return left_curverad, right_curverad
+        lane_center = (right_fitx[self.binary_warped.shape[0]-1]-left_fitx[self.binary_warped.shape[0]-1])/2
+        offset_in_pixels = abs(lane_center - (self.binary_warped.shape[0]/2))
+        offset = offset_in_pixels * xm_per_pix
+
+        return offset, left_curverad, right_curverad

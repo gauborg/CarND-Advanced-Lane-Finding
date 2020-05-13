@@ -136,10 +136,12 @@ def advanced_lanelines(img):
     previous_detection = detected
 
     # get the left and right lane radii
-    left_radius, right_radius = binary_warped.measure_curvature_pixels()
+    center_offset, left_radius, right_radius = binary_warped.measure_curvature_pixels()
 
-    mean = round(0.5*(left_radius+right_radius), 2)
-    road_curvature = "Road Curvature = " + str(mean) + "m"
+    road_radius = round(0.5*(left_radius+right_radius), 2)
+    center_offset = round(center_offset, 2)
+    road_curvature = "Road Curvature = " + str(road_radius) + "m"
+    center_offset = "Center Offset = " + str(center_offset) + "m"
 
     # print("Left = ", left_radius)
     # print("Right = ", right_radius)
@@ -162,10 +164,10 @@ def advanced_lanelines(img):
     # Combine the result with the original image
     result = cv2.addWeighted(undist_original, 1, unwarped, 0.3, 0)
     # this prints the value of road curvature onto the output image
-    cv2.putText(result, road_curvature, (80, 90), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255,255,255), thickness=2)
+    cv2.putText(result, road_curvature, (80, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255,255,255), thickness=2)
+    cv2.putText(result, center_offset, (80, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255,255,255), thickness=2)
 
     return result
-
 
 
 # define variables needed in the global scope
@@ -175,14 +177,11 @@ previous_detection = False
 
 from class_lanelines import LaneLines
 
-
 # video pipeline
 video_binary_output = 'video-output.mp4'
 clip1 = VideoFileClip("project_video.mp4")
 white_clip = clip1.fl_image(advanced_lanelines) # NOTE: this function expects color images!!
 white_clip.write_videofile(video_binary_output, audio=False)
-
-
 
 # image pipeline - run for two successive images"
 '''
