@@ -70,7 +70,7 @@ Other images can be found in the folder *output_images/test_images_undistorted*.
 
 Text boxes 5 and 6 include the basic thresholding and combined function definitions respectively.
 
-I have written separate functions to generate different thresholded binary images. I have written separate functions for applying thresholds based on hue, lightness, separation channels and sobel gradients, magnitude and direction. In addition to these functions, I have also included a combined thresholding function which combines multiple thresholded images together to more robustly visualize lanelines. I implemented the color transform from RGB to HLS in the combined thresholding function and submitted the HLS formatted image as input to the individual thresholding functions.
+I have written separate functions for applying thresholds based on hue, lightness, separation channels and sobel gradients, magnitude and direction. In addition to these functions, I have also included a combined thresholding function which combines different thresholded images together to more robustly visualize lanelines. I implemented the color transform from RGB to HLS in the combined thresholding function and submitted the HLS formatted image as input to the individual thresholding functions.
 I combined thresholds from x-direction gradient, lightness and saturation thresholded binary images to get a combined thresholding image as shown below:
 
 ```python
@@ -97,6 +97,8 @@ More images are saved in the *output_images/test_images_masked* folder.
 **4. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.**
 
 We define a function *perspective_view* in textbox 7 which takes as input our thresholded binary image. This function applies a perspective transform on the image. This gives us a bird's eye view of road so that the lanelines appear from the top and parallel. We select the endpoints of the laneline from a image approximately as the *src* points. We specify some destination *dst* points in the warped image so that our laneline will appear as parallel.
+
+
 
 After this, we use the function [cv2.perspectiveTransform()](https://docs.opencv.org/2.4/modules/imgproc/doc/geometric_transformations.html#getperspectivetransform) from OpenCV library by providing *src* and *dst* points as the inputs. This function calculates the 3*3 transformation matrix. We use this transformation matrix in a function called [cv2.warpPerspective()](https://docs.opencv.org/2.4/modules/imgproc/doc/geometric_transformations.html#warpperspective) to get the warped (transformed iamge) of our lanelines.
 
@@ -143,6 +145,13 @@ Additional images of perspective transform can be found in the folder *output_im
 
 **5. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?**
 
+We use our binary thresholded perspective transformed image. We run sliding boxes approach to calculate sliding box approach to detect left and right laneline pixels in our image.
+
+We then extract the x and y indices of detected pixels. 
+
+
+
+We then use the function [np.polyfit()](https://numpy.org/doc/1.18/reference/generated/numpy.polyfit.html?highlight=polyfit#numpy.polyfit)
 
 
 
@@ -151,3 +160,6 @@ Additional images of perspective transform can be found in the folder *output_im
 
 
 **7. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.**
+
+
+
