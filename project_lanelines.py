@@ -117,27 +117,47 @@ def advanced_lanelines(img):
     # apply perspective transform on the thresholded image
     warped, M, Minv = perspective_view(undist_thresholded)
 
+
     # these will be empty for the first iteration and they will store the values of lane fits from previous iterations
     # declaring lane fits as global variables so that they can be modified from anywhere in the code
+    
+    # list storing left and right lanefit values from previous frames
+    global prev_left_fits
+    global prev_right_fits
 
-    global previous_left_fit
-    global previous_right_fit
-    global previous_detection
-
+    # average of previous 10 lanefits
+    global average_left_fit
+    global average_right_fit
 
     # initialize the lanelines class by giving inputs from previous iteration
-    binary_warped = LaneLines(warped, previous_left_fit, previous_right_fit, previous_detection)
+    binary_warped = LaneLines(warped, average_left_fit, average_right_fit)
 
     # calculate the left and right lane fits
-    out_img, leftfit, rightfit, detected = binary_warped.find_lane_pixels()
+    out_img, leftfit, rightfit = binary_warped.find_lane_pixels()
 
-    previous_left_fit = leftfit
-    previous_right_fit = rightfit
-    previous_detection = detected
+    # we convert our left and right fits from shape (3,) to an array of shape (1,3) to append it to our lists
+    previous_left_fit_array = np.array([leftfit])
+    previous_right_fit_array = np.array([rightfit])
+
+    # we add fits from previous detections to our list of previous fits
+    prev_left_fits = np.append(prev_left_fits, previous_left_fit_array, axis = 0)
+    prev_right_fits = np.append(prev_right_fits, previous_right_fit_array, axis = 0)
+
+    # we ensure that the list doesn't take into account more than 15 previous measurements
+    # we delete the initial element of the array if it does, i.e. - earliest element in the array
+    if (prev_left_fits.shape[0] > 15):
+        prev_left_fits = np.delete(prev_left_fits, 0, axis = 0)
+    if(prev_right_fits.shape[0] > 15):
+        prev_right_fits = np.delete(prev_right_fits, 0, axis = 0)
+
+    # compute average of past 10 best fits and pass them over to next iteration
+    average_left_fit = np.mean(prev_left_fits, axis = 0)
+    average_right_fit = np.mean(prev_right_fits, axis = 0)
 
     # get the left and right lane radii
     center_offset, left_radius, right_radius = binary_warped.measure_curvature_pixels()
 
+    # calculation of road curvature
     road_radius = round(0.5*(left_radius+right_radius), 2)
     center_offset = round(center_offset, 2)
     road_curvature = "Road Curvature = " + str(road_radius) + "m"
@@ -145,7 +165,7 @@ def advanced_lanelines(img):
 
     # print("Left = ", left_radius)
     # print("Right = ", right_radius)
-    # print("Road Curvature = ", mean)
+    # print("Road Curvature = ", road_radius)
 
     warp_zero = np.zeros_like(warped).astype(np.uint8)
     color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -163,19 +183,48 @@ def advanced_lanelines(img):
 
     # Combine the result with the original image
     result = cv2.addWeighted(undist_original, 1, unwarped, 0.3, 0)
+
     # this prints the value of road curvature onto the output image
-    cv2.putText(result, road_curvature, (80, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255,255,255), thickness=2)
-    cv2.putText(result, center_offset, (80, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255,255,255), thickness=2)
+    cv2.putText(result, road_curvature, (80, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
+
+    # this prints the value of center offset onto the output image
+    cv2.putText(result, center_offset, (80, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
+
+    # VISUALIZATION
+    # THIS SECTION SHOULD BE COMMENTED OUT WHEN RUNNING ON VIDEO STREAM
+    '''
+    f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(25, 10))
+    ax1.imshow(img)
+    ax1.set_title('Original Image', fontsize=20)
+    ax2.imshow(threshold, cmap = 'gray')
+    ax2.set_title('Original Thresholded', fontsize=20)
+    ax3.imshow(warped_original, cmap = 'gray')
+    ax3.set_title('Warped Perspective', fontsize=20)
+    ax4.imshow(out_img)
+    ax4.set_title('Sliding Boxes', fontsize=20)
+    plt.show()
+    '''
 
     return result
 
 
-# define variables needed in the global scope
-previous_left_fit = []
-previous_right_fit = []
-previous_detection = False
 
+
+# define variables needed in the global scope
+previous_left_fit = None
+previous_right_fit = None
+
+# initialize empty 1*3 empty arrays for calculating the storing lane fit data of previous frames
+prev_left_fits = np.empty([1,3])
+prev_right_fits = np.empty([1,3])
+
+# intitialize the average left and right fit empty lists - these will be updated in every iteration
+average_left_fit = []
+average_right_fit = []
+
+# import the lanelines class
 from class_lanelines import LaneLines
+
 
 # video pipeline
 video_binary_output = 'video-output.mp4'
@@ -183,16 +232,17 @@ clip1 = VideoFileClip("project_video.mp4")
 white_clip = clip1.fl_image(advanced_lanelines) # NOTE: this function expects color images!!
 white_clip.write_videofile(video_binary_output, audio=False)
 
+
+
 # image pipeline - run for two successive images"
 '''
-test_image = mpimg.imread("test_images/test1.jpg")
+test_image = mpimg.imread("test_images/test2.jpg")
 lane_image = advanced_lanelines(test_image)
 plt.imshow(lane_image)
 plt.show()
 
-test_image2 = mpimg.imread("test_images/test2.jpg")
+test_image2 = mpimg.imread("test_images/test6.jpg")
 lane_image2 = advanced_lanelines(test_image2)
 plt.imshow(lane_image2)
 plt.show()
-
 '''

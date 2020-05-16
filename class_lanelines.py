@@ -11,23 +11,24 @@ import cv2
 class LaneLines():
 
     # constructor
-    def __init__(self, binary_warped, prev_left_fit, prev_right_fit, previous_detection):
+    def __init__(self, binary_warped, prev_avg_left_fit, prev_avg_right_fit):
         # incoming binary image
         self.binary_warped = binary_warped
-        # was the line detected in the last iteration?
-        self.detected = previous_detection
         # x values of the last n fits of the line
         self.recent_xfitted = []
         # creating the array for binary
         self.ploty = np.linspace(0, self.binary_warped.shape[0]-1, self.binary_warped.shape[0])
         # no of windows
         # previous left and right fits which worked
-        self.left_fit = prev_left_fit
-        self.right_fit = prev_right_fit
+        # self.left_fit = prev_left_fit
+        # self.right_fit = prev_right_fit
+        # average of past 10 fits
+        self.avg_left_fit = prev_avg_left_fit
+        self.avg_right_fit = prev_avg_right_fit
 
 
     # function for detecting lanelines manually
-    def sliding_windows(self):
+    def find_lane_pixels(self):
 
         # This part creates the histogram if lanelines are not detected in the previous iteration
         # Take a histogram of the bottom half of the image
@@ -44,9 +45,9 @@ class LaneLines():
         # Choose the number of sliding windows
         nwindows = 10
         # Set the width of the windows +/- margin
-        margin = 100
+        margin = 50
         # Set minimum number of pixels found to recenter window
-        minpix = 50
+        minpix = 40
 
         # Set height of windows - based on nwindows above and image shape
         window_height = np.int(self.binary_warped.shape[0]//nwindows)
@@ -109,152 +110,59 @@ class LaneLines():
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
-        # determine best fitting 2nd order polynomials for lanelines
-        self.left_fit = np.polyfit(lefty, leftx, 2)
-        self.right_fit = np.polyfit(righty, rightx, 2)
+        # for first frame, we assume that we will find some pixels...
+        # if lanelines are not found, we use average of previous 10 frames measurements...
+
+        if ((leftx.size == 0) | (lefty.size == 0)):
+            # if right laneline is not detected, we use average left fit of previous frames...
+            temp_l_fit = self.avg_left_fit
+            self.left_fit = temp_l_fit
+
+            self.right_fit = np.polyfit(righty, rightx, 2)
+            print('Reverting to average of previous estimates for left lane')
+        elif ((rightx.size == 0) | (righty.size == 0)):
+            # if right laneline is not detected, we use average right fit of previous frames...
+            temp_r_fit = self.avg_right_fit
+            self.right_fit = temp_r_fit
+
+            self.left_fit = np.polyfit(lefty, leftx, 2)
+            print('Reverting to average of previous estimates for right lane')
+        else:
+            # if lanelines pixels are found, we use current values of lefty, leftx, righty, rightx to calculate our latest laneline equations...
+            self.left_fit = np.polyfit(lefty, leftx, 2)
+            self.right_fit = np.polyfit(righty, rightx, 2)
 
 
         # Generate x and y values for plotting
-        # ploty = np.linspace(0, self.binary_warped.shape[0]-1, self.binary_warped.shape[0] )
         try:
             self.left_fitx = self.left_fit[0]*self.ploty**2 + self.left_fit[1]*self.ploty + self.left_fit[2]
             self.right_fitx = self.right_fit[0]*self.ploty**2 + self.right_fit[1]*self.ploty + self.right_fit[2]
         except IndexError:
             # Avoids an error if `left` and `right_fit` are still none or incorrect
             print('The function failed to fit a line!')
-            self.left_fitx = 1*self.ploty**2 + 1*self.ploty
-            self.right_fitx = 1*self.ploty**2 + 1*self.ploty
+            print('Reverting to average of previous estimates')
+
+            # Here, we compute the data based on average of previous 5 measurements
+            self.left_fitx = self.avg_left_fit[0]*self.ploty**2 + self.avg_left_fit[1]*self.ploty + self.avg_left_fit[2]
+            self.right_fitx = self.avg_right_fit[0]*self.ploty**2 + self.avg_right_fit[1]*self.ploty + self.avg_right_fit[2]
 
 
         ## Visualization ##
         ## Uncommment only when running on test images"
-        '''
+        
         # Colors in the left and right lane regions
         out_img[lefty, leftx] = [255, 0, 0]
         out_img[righty, rightx] = [0, 0, 255]
         # Plots the left and right polynomials on the lane lines
+        
+        '''
         plt.plot(self.left_fitx, self.ploty, color='yellow')
         plt.plot(self.right_fitx, self.ploty, color='yellow')
-        plt.imshow(out_img)
-        plt.show()
+        # plt.imshow(out_img)
+        # plt.show()
         '''
         
         return out_img, self.left_fit, self.right_fit
-
-    
-    # for searching from a prior region
-    def search_from_prior(self):
-
-        # HYPERPARAMETER
-        # Choose the width of the margin around the previous polynomial to search
-        # The quiz grader expects 100 here, but feel free to tune on your own!
-        out_img = np.dstack((self.binary_warped, self.binary_warped, self.binary_warped))
-        
-        search_margin = 100
-
-        # Grab activated pixels
-        nonzero = self.binary_warped.nonzero()
-        nonzeroy = np.array(nonzero[0])
-        nonzerox = np.array(nonzero[1])
-            
-        ### TO-DO: Set the area of search based on activated x-values ###
-        ### within the +/- margin of our polynomial function ###
-        ### Hint: consider the window areas for the similarly named variables ###
-        ### in the previous quiz, but change the windows to our new search area ###
-
-        left_lane_inds = ((nonzerox > (self.left_fit[0]*(nonzeroy**2) + self.left_fit[1]*nonzeroy + 
-                        self.left_fit[2] - search_margin)) & (nonzerox < (self.left_fit[0]*(nonzeroy**2) + 
-                        self.left_fit[1]*nonzeroy + self.left_fit[2] + search_margin)))
-        right_lane_inds = ((nonzerox > (self.right_fit[0]*(nonzeroy**2) + self.right_fit[1]*nonzeroy + 
-                        self.right_fit[2] - search_margin)) & (nonzerox < (self.right_fit[0]*(nonzeroy**2) + 
-                        self.right_fit[1]*nonzeroy + self.right_fit[2] + search_margin)))
-        
-        # Again, extract left and right line pixel positions
-
-        leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds]
-        rightx = nonzerox[right_lane_inds]
-        righty = nonzeroy[right_lane_inds]
-
-        # check if the arrays are empty, i.e. no pixels are detected
-        if ((leftx.size == 0) | (lefty.size == 0)):
-            detection_in_current = False
-        elif ((rightx.size == 0) | (righty.size == 0)):
-            detection_in_current = False
-        else:
-            detection_in_current = True
-        
-        # if above condition is true, then we calculate lanelines based on above x and y, else we execute function sliding widows
-        if (detection_in_current):
-            # print("detection in current = ", detection_in_current)
-            
-            # calculate current fits if lanelines are detected
-            self.left_fit = np.polyfit(lefty, leftx, 2)
-            self.right_fit = np.polyfit(righty, rightx, 2)
-
-            try:
-                self.left_fitx = self.left_fit[0]*self.ploty**2 + self.left_fit[1]*self.ploty + self.left_fit[2]
-                self.right_fitx = self.right_fit[0]*self.ploty**2 + self.right_fit[1]*self.ploty + self.right_fit[2]
-            except IndexError:
-                # Avoids an error if `left` and `right_fit` are still none or incorrect
-                print('The function failed to fit a line!')
-                self.left_fitx = 1*self.ploty**2 + 1*self.ploty
-                self.right_fitx = 1*self.ploty**2 + 1*self.ploty
-
-        else:
-            # if no lanelines are found using search from prior option, use sliding windows functionality
-            out_img, self.left_fit, self.right_fit = self.sliding_windows()
-            print("sliding windows from search prior was called...")
-        
-        
-        ## Visualization ##
-        # IMPORTANT - This should be commented out for the video section, else it will show an image for every frame of the video
-        '''
-        # Colors in the left and right lane regions
-        out_img = np.dstack((self.binary_warped, self.binary_warped, self.binary_warped))*255
-        window_img = np.zeros_like(out_img)
-        # Color in left and right line pixels
-        out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
-        out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
-
-        # Generate a polygon to illustrate the search window area
-        # And recast the x and y points into usable format for cv2.fillPoly()
-        left_line_window1 = np.array([np.transpose(np.vstack([self.left_fitx-search_margin, self.ploty]))])
-        left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([self.left_fitx+search_margin, 
-                                self.ploty])))])
-        left_line_pts = np.hstack((left_line_window1, left_line_window2))
-        right_line_window1 = np.array([np.transpose(np.vstack([self.right_fitx-search_margin, self.ploty]))])
-        right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([self.right_fitx+search_margin, 
-                                self.ploty])))])
-        right_line_pts = np.hstack((right_line_window1, right_line_window2))
-
-        # Draw the lane onto the warped blank image
-        cv2.fillPoly(window_img, np.int_([left_line_pts]), (0,255, 0))
-        cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,255, 0))
-        out_img = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
-        plt.figure(1)
-        plt.imshow(out_img)
-        plt.show()
-        '''
-        self.detected = detection_in_current
-
-        return out_img, self.left_fit, self.right_fit
-
-
-    def find_lane_pixels(self):
-
-        out_img = np.dstack((self.binary_warped, self.binary_warped, self.binary_warped))
-
-        if (self.detected):
-            out_img, self.left_fit, self.right_fit = self.search_from_prior()
-            print("Search from prior from find_pixels executed!")
-        else:
-            out_img, self.left_fit, self.right_fit = self.sliding_windows()
-            self.detected = True
-            print("Sliding window executed!")
-
-        return out_img, self.left_fit, self.right_fit, self.detected
-
 
 
     def measure_curvature_pixels(self):
@@ -269,9 +177,6 @@ class LaneLines():
         ym_per_pix = 30/720 # meters per pixel in y dimension
         xm_per_pix = 3.7/700 # meters per pixel in x dimension
 
-        left_fitx = self.left_fit[0]*self.ploty**2 + self.left_fit[1]*self.ploty + self.left_fit[2]
-        right_fitx = self.right_fit[0]*self.ploty**2 + self.right_fit[1]*self.ploty + self.right_fit[2]
-
         left_fit_cr = np.polyfit(self.ploty*ym_per_pix, self.left_fitx*xm_per_pix, 2)
         right_fit_cr = np.polyfit(self.ploty*ym_per_pix, self.right_fitx*xm_per_pix, 2)
         
@@ -279,7 +184,8 @@ class LaneLines():
         left_curverad = (1 + ((2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])  ## Implement the calculation of the left line here
         right_curverad = (1 + ((2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
 
-        lane_center = (right_fitx[self.binary_warped.shape[0]-1]-left_fitx[self.binary_warped.shape[0]-1])/2
+        # TO-DO: Calculate the center offset of the vehicle 
+        lane_center = (self.right_fitx[self.binary_warped.shape[0]-1]-self.left_fitx[self.binary_warped.shape[0]-1])/2
         offset_in_pixels = abs(lane_center - (self.binary_warped.shape[0]/2))
         offset = offset_in_pixels * xm_per_pix
 
