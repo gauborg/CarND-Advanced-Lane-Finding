@@ -186,6 +186,8 @@ We calculate the lane center by subtracting the x fits for the left and right la
 
 **Provide a link to your final video output. Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!)**
 
+The video pipeline is given in the video_lanelines.ipynb notebook. It uses almost the same pipeline as images. Only certain commands for plotting images have been commented out to run for video.
+
 ### [Link to the output video](videos_output)
 
 ---
@@ -198,8 +200,8 @@ We calculate the lane center by subtracting the x fits for the left and right la
 
 I am listing a few issues I faced during the implementation of this project -
 
-1. Changes in road texture and shadows from object, other vehicles is difficult to obtain with a static (fixed) thresholding. This made it difficult to detect lanelines in certain frames.
-2. 
+1. Changes in road texture and shadows from object, other vehicles is difficult to obtain with a static (fixed) thresholding. This made it difficult to detect lanelines in certain frames. To compensate for this shortcoming, I designed the code to use average lane fitting data of past 10-15 frames. Assuming a frame rate of 25 frames per second and hence elapsed time of 15/25 = 0.6 seconds, the actual lane curvature won't deviate too much from the calculated curvature.
+
 
 ### Potential Shortcomings
 
