@@ -26,9 +26,10 @@ The goals / steps of this project are the following:
 * Warp the detected lane boundaries back onto the original image.
 * Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
 
-The images for camera calibration are stored in the folder called `camera_cal`.  The images in `test_images` are for testing the pipeline on single frames.
+The images for camera calibration are stored in the folder called *`camera_cal`*.  The images in *`test_images`* are for testing the pipeline on single frames.
 
 ---
+## Image Pipeline
 
 ### Computing the Camera Calibration Matrix
 
@@ -116,7 +117,7 @@ pts = np.array([bottom_left, bottom_right, top_right, top_left], np.int32)
 pts = pts.reshape((-1, 1, 2))
 # create a copy of original img
 imgpts = img.copy()
-cv2.polylines(imgpts, [pts], True, (255, 0, 0), thickness = 3)
+cv2.polylines(imgpts, [pts], True, (255, 0, 0), thickness=3)
 
 # choose four points in warped image so that the lines should appear as parallel
 bottom_left_dst = [320, 720]
@@ -180,3 +181,37 @@ We calculate the lane center by subtracting the x fits for the left and right la
 
 ![image](markdown_images/test2-result.jpg)
 
+---
+## Video Pipeline
+
+**Provide a link to your final video output. Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!)**
+
+### [Link to the output video](videos_output)
+
+---
+
+## Discussion and Conclusion
+
+**Briefly discuss any problems / issues you faced in your implementation of this project. Where will your pipeline likely fail? What could you do to make it more robust?**
+
+### Problems/Issues faced during implementation:
+
+I am listing a few issues I faced during the implementation of this project -
+
+1. Changes in road texture and shadows from object, other vehicles is difficult to obtain with a static (fixed) thresholding. This made it difficult to detect lanelines in certain frames.
+2. 
+
+### Potential Shortcomings
+
+There are some shortcomings associated with this code.
+
+1. This code and out image threshold is not robust enough to handle the effect of rain/snow, extreme lighting conditions, glare on the camera lens.
+2. The current pipeline does not account for the effect of road bumps/potholes, banking, grade on our perspective transform.
+3. This code can compensate for undetected lanelines in a couple of frames but is not robust in case of undetected lanelines for several frames continuously.
+4. This code works perfectly for highway driving scenario where road curvature is larger but is not well suited for highly twisty roads.
+
+### Improvements
+
+1. To make better predictions in every frame (even in case of different road textures and shadows), a more robust thresholding with different filters (for hsv or rgb channels) can be used.
+2. An advanced algorithm to compute the best fit from past several frames.
+3. Use of estimation algorithms such as Kalman filters to improve our lane equations
