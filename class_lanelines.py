@@ -119,14 +119,14 @@ class LaneLines():
             self.left_fit = temp_l_fit
 
             self.right_fit = np.polyfit(righty, rightx, 2)
-            print('Reverting to average of previous estimates for left lane')
+            # print('Reverting to average of previous estimates for left lane')
         elif ((rightx.size == 0) | (righty.size == 0)):
             # if right laneline is not detected, we use average right fit of previous frames...
             temp_r_fit = self.avg_right_fit
             self.right_fit = temp_r_fit
 
             self.left_fit = np.polyfit(lefty, leftx, 2)
-            print('Reverting to average of previous estimates for right lane')
+            # print('Reverting to average of previous estimates for right lane')
         else:
             # if lanelines pixels are found, we use current values of lefty, leftx, righty, rightx to calculate our latest laneline equations...
             self.left_fit = np.polyfit(lefty, leftx, 2)
