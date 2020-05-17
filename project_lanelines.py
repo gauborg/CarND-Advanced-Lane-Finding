@@ -117,7 +117,6 @@ def advanced_lanelines(img):
     # apply perspective transform on the thresholded image
     warped, M, Minv = perspective_view(undist_thresholded)
 
-
     # these will be empty for the first iteration and they will store the values of lane fits from previous iterations
     # declaring lane fits as global variables so that they can be modified from anywhere in the code
     
@@ -155,7 +154,7 @@ def advanced_lanelines(img):
     average_right_fit = np.mean(prev_right_fits, axis = 0)
 
     # get the left and right lane radii
-    center_offset, left_radius, right_radius = binary_warped.measure_curvature_pixels()
+    center_offset, left_radius, right_radius = binary_warped.measure_curvature()
 
     # calculation of road curvature
     road_radius = round(0.5*(left_radius+right_radius), 2)

@@ -47,7 +47,7 @@ class LaneLines():
         # Set the width of the windows +/- margin
         margin = 50
         # Set minimum number of pixels found to recenter window
-        minpix = 40
+        minpix = 50
 
         # Set height of windows - based on nwindows above and image shape
         window_height = np.int(self.binary_warped.shape[0]//nwindows)
@@ -165,7 +165,7 @@ class LaneLines():
         return out_img, self.left_fit, self.right_fit
 
 
-    def measure_curvature_pixels(self):
+    def measure_curvature(self):
         
         # Calculates the curvature of polynomial functions in pixels.
         

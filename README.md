@@ -105,8 +105,6 @@ After this, we use the function [cv2.perspectiveTransform()](https://docs.opencv
 Here is the code I used in the *perspective_view()* function -
 
 ```python
-img_size = (img.shape[1], img.shape[0])
-
 # image points extracted from image approximately
 bottom_left = [210, 720]
 bottom_right = [1100, 720]
@@ -127,13 +125,10 @@ top_left_dst = [320, 1]
 top_right_dst = [920, 1]
 
 dst = np.float32([bottom_left_dst, bottom_right_dst, top_right_dst, top_left_dst])
-
 # apply perspective transform
 M = cv2.getPerspectiveTransform(src, dst)
-
 # compute inverse perspective transform
 Minv = cv2.getPerspectiveTransform(dst, src)
-
 # warp the image using perspective transform M
 warped = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
 ```
@@ -141,25 +136,47 @@ Here is an example of a perspective transform image along with the original imag
 
 ![image](markdown_images/perspective_transform_test2.jpg)
 
-Additional images of perspective transform can be found in the folder *output_images/tets_images_binary_warped*. (I have included only binary perspective transformed images here.)
+Additional images of perspective transform can be found in the folder *output_images/test_images_binary_warped*. (I have included only binary perspective transformed images here.)
 
 **5. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?**
 
-We use our binary thresholded perspective transformed image. We run sliding boxes approach to calculate sliding box approach to detect left and right laneline pixels in our image.
+I have defined a class named *LaneLines* in a separate file *class_lanelines.py* which stores different parameters of detected such as x,y co-ordinates.
 
-We then extract the x and y indices of detected pixels. 
+In this class, I have defined a function *find_lane_pixels()*. We use our binary thresholded perspective transformed image. We run sliding boxes approach to calculate sliding box approach to detect left and right laneline pixels in our image. We extract the x and y positions of the detected pixels and fit a 2nd order polynomial to the detected lanelines using the function [np.polyfit()](https://numpy.org/doc/1.18/reference/generated/numpy.polyfit.html?highlight=polyfit#numpy.polyfit).
 
+```python
+if ((leftx.size == 0) | (lefty.size == 0)):
+    # if right laneline is not detected, we use average left fit of previous frames...
+        temp_l_fit = self.avg_left_fit
+        self.left_fit = temp_l_fit
+        self.right_fit = np.polyfit(righty, rightx, 2)
+        print('Reverting to average of previous estimates for left lane')
+    elif ((rightx.size == 0) | (righty.size == 0)):
+        # if right laneline is not detected, we use average right fit of previous frames...
+        temp_r_fit = self.avg_right_fit
+        self.right_fit = temp_r_fit
+        self.left_fit = np.polyfit(lefty, leftx, 2)
+        print('Reverting to average of previous estimates for right lane')
+    else:
+        # if lanelines pixels are found, we use current values of lefty, leftx, righty, rightx to calculate our latest laneline equations...
+        self.left_fit = np.polyfit(lefty, leftx, 2)
+        self.right_fit = np.polyfit(righty, rightx, 2)
+```
+Here is an example image of the laneline pixels detected using the sliding boxes approach.
 
-
-We then use the function [np.polyfit()](https://numpy.org/doc/1.18/reference/generated/numpy.polyfit.html?highlight=polyfit#numpy.polyfit)
-
-
+![image](markdown_images/test2-sliding-boxes.png)
 
 **6. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.**
 
+After fitting the 2nd order polynomials to both left and right lane pixels, we use the following formulae to determing the radius of curvature -
 
+![image](markdown_images/formulae.png)
+
+I implemented a separate function *measure_curvature()* which calculates the left and right lane curvatures using the above formulae. This gives us the road curvature in pixels we convert it to road curvature in meters.
+
+We calculate the lane center by subtracting the x fits for the left and right lanelines. In the next step, we calculate the center offset of the vehicle by subtracting the lane center from image center. This gives us the value of center offset in pixels. We use our pixels per meter value to convert this value from pixels to meters.
 
 **7. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.**
 
-
+![image](markdown_images/test2-result.jpg)
 
