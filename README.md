@@ -35,7 +35,7 @@ The images for camera calibration are stored in the folder called *`camera_cal`*
 
 **1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.**
 
-The code for this section is in the pipeline.ipynb file textbox 2. Here, we execute the camera calibration matrix by providing the number of nx and ny, i.e. the number of chessboard corners in our images.
+The code for this section is in the ***pipeline_images.ipynb*** file textbox 2. Here, we execute the camera calibration matrix by providing the number of nx and ny, i.e. the number of chessboard corners in our images.
 
 Camera images have a natural distortion present in them because of lense curvature. This curvature makes the images look distorted (fish-eye effect). To correct for this distortion, we perform camera calibration. We start by preparing two lists *imgpoints* and *objpoints* for storing the x and y co-ordinates of the detected corners in our chessboard images respectively. So, we will map the co-ordinates of the distorted image corners, i.e. *imgpoints* with real world undistorted corners, i.e. *objpoints*.
 
@@ -186,7 +186,7 @@ We calculate the lane center by subtracting the x fits for the left and right la
 
 **Provide a link to your final video output. Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!)**
 
-The video pipeline is given in the video_lanelines.ipynb notebook. It uses almost the same pipeline as images. Only certain commands for plotting images have been commented out to run for video.
+The video pipeline is given in the ***video_lanelines.ipynb*** notebook. It uses almost the same pipeline as images. Only certain commands for plotting images have been commented out to run for video.
 
 ### [Link to the output video](videos_output)
 
