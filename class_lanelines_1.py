@@ -41,11 +41,11 @@ class LaneLines():
         
         # HYPERPARAMETERS
         # Choose the number of sliding windows
-        nwindows = 10
+        nwindows = 12
         # Set the width of the windows +/- margin
-        margin = 50
+        margin = 60
         # Set minimum number of pixels found to recenter window
-        minpix = 50
+        minpix = 40
 
         # Set height of windows - based on nwindows above and image shape
         window_height = np.int(self.binary_warped.shape[0]//nwindows)
@@ -108,94 +108,113 @@ class LaneLines():
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
         
+        '''
         print("leftx = ", leftx.size)
         print("lefty = ", lefty.size)
         print("rightx = ", rightx.size)
         print("righty = ", righty.size)
+        '''
         
         # remove outlier points based on x coordinates
-        leftx, outlier_list_left = self.rmv_outliers(leftx, 1)
+        leftx, outlier_list_left = self.rmv_outliers(leftx, 2)
 
         # remove the same points identified as outliers in lefty array
         lefty = np.delete(lefty, outlier_list_left)
 
         # remove outlier points based on x coordinates
-        rightx, outlier_list_right = self.rmv_outliers(rightx, 1)
+        rightx, outlier_list_right = self.rmv_outliers(rightx, 2)
 
         # remove the same points identified as outliers in rightx array
         righty = np.delete(righty, outlier_list_right)
         
+        '''
         print("new leftx = ", leftx.size)
         print("new lefty = ", lefty.size)
         print("new rightx = ", rightx.size)
         print("new righty = ", righty.size)
+        '''
 
         # if bad lanelines are detected
         if (np.mean(rightx) < np.mean(leftx)):
             # bad lines are detected, lets commpute weighted average of previous estimates
-            print("first loop executed!")
             pass
-            
-        elif ((leftx.size < 50) or (lefty.size < 50)):
+        
+        # if the number of total pixels detected is less than 50
+        # this makes the calculations less accurate and hence we use
+        # 90 % of the previous left fit average and 10% of the current
+        elif ((leftx.size == 0) or (lefty.size == 0)):
 
-            print("second loop executed!")
             # if left laneline is not detected, we use average right fit of previous frames...
-            print('Reverting to average of previous estimates for left laneline ...')
 
             # since lanewidth is 3.7 meters, and 3.7 meters = 700 pixels in our image
             # if laneline is not found, we offset the left lane by 700 pixels
             # we use the current left fit for our laneline
             offset_l_fit = np.polyfit(righty, rightx, 2)
 
-            print("temp_l_fit[2] = ", offset_l_fit[2])
+            # print("temp_l_fit[2] = ", offset_l_fit[2])
             # since lanewidth is 3.7 meters, and 3.7 meters = 700 pixels in our image
             # if laneline is not found, we offset the right lane by 700 pixels
             # we use the current right fit for our laneline
-            offset_l_fit[2] = offset_l_fit[2] + 700
-            print("new temp_l_fit[2] = ", offset_l_fit[2])
+            offset_l_fit[2] = offset_l_fit[2] + 680
+            # print("new temp_l_fit[2] = ", offset_l_fit[2])
 
             # gather previous estimates for right laneline
             prev_avg = self.avg_left_fit
             prev_left_fit = self.left_fit
 
-            print("offset l fit = ", offset_l_fit)
+            # print("offset l fit = ", offset_l_fit)
             # print("previous frame = ", prev_estimate)
-            print("prev left average = ", prev_avg)
+            # print("prev left average = ", prev_avg)
 
             self.left_fit = np.add(0.9*offset_l_fit, 0.1*prev_avg)
             self.right_fit = np.polyfit(righty, rightx, 2)
 
-        elif ((rightx.size < 50) or (righty.size < 50)):
-
-            print("third loop executed!")
+        # if the number of total pixels detected is less than 50
+        # this makes the calculations less accurate and hence we use
+        # 90 % of the previous rightt fit average and 10% of the current
+        elif ((rightx.size == 0) or (righty.size == 0)):
             
             # if right laneline is not detected, we use average right fit of previous frames...
-            print('Reverting to average of previous estimates for right laneline ...')
 
             offset_r_fit = np.polyfit(lefty, leftx, 2)
 
-            print("temp_r_fit[2] = ", offset_r_fit[2])
+            # print("temp_r_fit[2] = ", offset_r_fit[2])
             # since lanewidth is 3.7 meters, and 3.7 meters = 700 pixels in our image
             # if laneline is not found, we offset the left lane by 700 pixels
             # we use the current left fit for our laneline
-            offset_r_fit[2] = offset_r_fit[2] + 700
-            print("new temp_r_fit[2] = ", offset_r_fit[2])
+            offset_r_fit[2] = offset_r_fit[2] + 680
+            # print("new temp_r_fit[2] = ", offset_r_fit[2])
 
             # gather previous estimates for right laneline
             prev_avg = self.avg_right_fit
 
-            print("offset r fit = ", offset_r_fit)
+            # print("offset r fit = ", offset_r_fit)
             # print("previous frame = ", prev_estimate)
             # print("prev right average = ", prev_avg)
 
             self.right_fit = np.add(0.9*offset_r_fit, 0.1*prev_avg)
             self.left_fit = np.polyfit(lefty, leftx, 2)
 
+        # when a good number of pixels are detected and lines can be fit
         else:
             # if lanelines pixels are found, we use current values of lefty, leftx, righty, rightx to calculate our latest laneline equations...
-            print("fourth loop executed!")
+            
             self.left_fit = np.polyfit(lefty, leftx, 2)
             self.right_fit = np.polyfit(righty, rightx, 2)
+
+            # check if the right lane value is less than left intercept value
+            # if yes, then update the right intercept by adding 700 to the 
+            # left intercept value
+
+            # this means that the detected line is really bad and we compute the average of past fits
+            if ((self.right_fit[2] < self.left_fit[2]) or (abs(self.right_fit[2]-self.left_fit[2]) > 720 )):
+                
+                # calculate offset intercept
+                right = np.add(0.5*self.avg_left_fit, 0.5*self.left_fit)
+                right[2] = 680 + self.avg_left_fit[2]
+
+                self.right_fit = right
+
 
         # Generate x and y values for plotting
         try:
@@ -206,10 +225,7 @@ class LaneLines():
             # Avoids an error if `left` and `right_fit` are still none or incorrect
             print('The function failed to fit a line!')
             print('Reverting to average of previous estimates')
-
-            # Here, we compute the data based on average of previous 5 measurements
-            self.left_fitx = self.avg_left_fit[0]*self.ploty**2 + self.avg_left_fit[1]*self.ploty + self.avg_left_fit[2]
-            self.right_fitx = self.avg_right_fit[0]*self.ploty**2 + self.avg_right_fit[1]*self.ploty + self.avg_right_fit[2]
+            pass
 
 
         ## Visualization ##

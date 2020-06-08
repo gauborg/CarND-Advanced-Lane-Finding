@@ -83,8 +83,8 @@ def perspective_view(img):
     # image points extracted from image approximately
     bottom_left = [220, 720]
     bottom_right = [1100, 720]
-    top_left = [580, 470]
-    top_right = [715, 470]
+    top_left = [570, 470]
+    top_right = [720, 470]
     src = np.float32([bottom_left, bottom_right, top_right, top_left])
     pts = np.array([bottom_left, bottom_right, top_right, top_left])
     pts = pts.reshape((-1, 1, 2))
@@ -135,8 +135,6 @@ def advanced_lanelines(img):
 
     global past_radii
 
-    # print frame number
-    print("Frame: ", frame)    
 
     # initialize the lanelines class by giving inputs from previous iteration
     binary_warped = LaneLines(warped, average_left_fit, average_right_fit, previous_left_fit, previous_right_fit)
@@ -148,8 +146,9 @@ def advanced_lanelines(img):
     previous_left_fit_array = np.array([leftfit])
     previous_right_fit_array = np.array([rightfit])
 
-    print("left fit - ", leftfit)
-    print("right fit - ", rightfit)
+    # print("frame = ", frame)
+    # print("left fit = ", leftfit)
+    # print("right fit = ", rightfit)
 
     # we add fits from previous detections to our list of previous fits
     prev_left_fits = np.append(prev_left_fits, previous_left_fit_array, axis = 0)
@@ -166,23 +165,26 @@ def advanced_lanelines(img):
     average_left_fit = np.mean(prev_left_fits, axis = 0)
     average_right_fit = np.mean(prev_right_fits, axis = 0)
 
-    print("Average Left Fit = ", average_left_fit)
-    print("Average Right Fit = ", average_right_fit)
+    # print("Average Left Fit = ", average_left_fit)
+    # print("Average Right Fit = ", average_right_fit)
 
     # get the left and right lane radii
     center_offset, left_radius, right_radius = binary_warped.measure_curvature()
 
+    # START OF RADIUS CALCULATIONS
     # calculation of road curvature
     current_road_radius = 0.5*(left_radius+right_radius)
 
-    # Storing past five radii 
+    # Storing past five frame's radii 
     past_radii.append(current_road_radius)
-    # If more than 5 values are stored, delete the earliest value
-    past_radii.pop(0)
-
-    print("radii = ", past_radii)
-
     # calculate weighted average of radii to reduce noisy measurements
+    road_radius = sum(past_radii)/len(past_radii)
+
+    # if no outliers are detected then, delete the oldest value
+    if (len(past_radii) > 5):
+        past_radii.pop(0)
+
+    # calculate mean radius
     road_radius = sum(past_radii)/len(past_radii)
     road_radius = round(road_radius)
 
@@ -192,7 +194,7 @@ def advanced_lanelines(img):
 
     # print("Left = ", left_radius)
     # print("Right = ", right_radius)
-    print("Road Curvature = ", road_radius)
+    # print("Road Curvature = ", road_radius)
 
     warp_zero = np.zeros_like(warped).astype(np.uint8)
     color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -221,8 +223,8 @@ def advanced_lanelines(img):
     cv2.putText(result, ("Frame: "+str(frame)), (20, 700), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), thickness=1)
 
     # overlay images
-    img2_resize = cv2.resize(out_img, None, fx = 0.22, fy = 0.22, interpolation = cv2.INTER_CUBIC)
-    result[25:25+img2_resize.shape[0],970:970+img2_resize.shape[1]] = img2_resize
+    img2_resize = cv2.resize(out_img, None, fx = 0.25, fy = 0.25, interpolation = cv2.INTER_CUBIC)
+    result[15:15+img2_resize.shape[0],945:945+img2_resize.shape[1]] = img2_resize
 
 
     # VISUALIZATION
@@ -264,12 +266,15 @@ average_right_fit = []
 
 # initialize list for storing past radius measurements
 past_radii = [0, 0, 0, 0, 0]
+
+# frame number of the video stream (not necessary)
 frame = 1
 
 # import the lanelines class
 from class_lanelines_1 import LaneLines
 
 
+# COMMENT OUT THIS SETION TO RUN ON IMAGES
 # video pipeline
 video_binary_output = 'project-video-output.mp4'
 clip1 = VideoFileClip("project_video.mp4")
@@ -277,8 +282,10 @@ white_clip = clip1.fl_image(advanced_lanelines) # NOTE: this function expects co
 white_clip.write_videofile(video_binary_output, audio=False)
 
 
-# image pipeline - run for two successive images"
+# UNCOMMENT THIS SECTION TO RUN ON IMAGES
 '''
+# image pipeline - run for two successive images"
+
 test_image = mpimg.imread("test_images/test2.jpg")
 lane_image = advanced_lanelines(test_image)
 plt.imshow(lane_image)
