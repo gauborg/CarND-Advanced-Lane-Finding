@@ -81,7 +81,7 @@ def combined_threshold(img):
 def perspective_view(img):
     img_size = (img.shape[1], img.shape[0])
     # image points extracted from image approximately
-    bottom_left = [210, 720]
+    bottom_left = [220, 720]
     bottom_right = [1100, 720]
     top_left = [570, 470]
     top_right = [720, 470]
@@ -134,14 +134,16 @@ def advanced_lanelines(img):
     global average_left_fit
     global average_right_fit
 
+    global i
+
     # initialize the lanelines class by giving inputs from previous iteration
     binary_warped = LaneLines(warped, previous_left_fit, previous_right_fit, previous_detection, average_left_fit, average_right_fit)
 
     # calculate the left and right lane fits
     out_img, leftfit, rightfit, detected = binary_warped.find_lane_pixels()
 
-    print(leftfit)
-    print(rightfit)
+    print("Output Left Fit - ", leftfit)
+    print("Output Right Fit - ", rightfit)
 
     # we convert our previous left and right fits from shape (3,) to shape (1,3) to append it to out list
     previous_left_fit_array = np.array([leftfit])
@@ -158,9 +160,19 @@ def advanced_lanelines(img):
     if(prev_right_fits.shape[0] > 10):
         prev_right_fits = np.delete(prev_right_fits, 0, axis = 0)
 
+    print("shape of left - ", prev_left_fits.shape)
+    print("shape of right - ", prev_right_fits.shape)
+    print("frame number - ", i)
+    
+    i = i + 1
+
+
     # compute average of past 10 best fits and pass them over to next iteration
     average_left_fit = np.mean(prev_left_fits, axis = 0)
     average_right_fit = np.mean(prev_right_fits, axis = 0)
+
+    print("Avg Left Fit - ", average_left_fit)
+    print("Avg Right Fit - ", average_right_fit)
 
 
     # get the left and right lane radii
@@ -173,7 +185,7 @@ def advanced_lanelines(img):
 
     # print("Left = ", left_radius)
     # print("Right = ", right_radius)
-    # print("Road Curvature = ", mean)
+    print("Road Curvature = ", road_radius)
 
     warp_zero = np.zeros_like(warped).astype(np.uint8)
     color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -195,10 +207,16 @@ def advanced_lanelines(img):
     cv2.putText(result, road_curvature, (80, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
     cv2.putText(result, center_offset, (80, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
 
+    # this line prints the frame number
+    cv2.putText(result, str(i-1), (1200, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
 
     # we assign the leftfit and right values here to pass them onto the next frame
     previous_left_fit = leftfit
     previous_right_fit = rightfit
+
+    print("Previous left fit - ", leftfit)
+    print("Previous right fit - ", rightfit)
+    print()
 
     return result
 
@@ -218,15 +236,15 @@ average_left_fit = []
 average_right_fit = []
 
 # import the lanelines class
-from class_lanelines import LaneLines
+from class_lanelines_w_prior_search_algorithm import LaneLines
 
+i = 1
 
 # video pipeline
-video_binary_output = 'video-output.mp4'
+video_binary_output = 'project-video-output.mp4'
 clip1 = VideoFileClip("project_video.mp4")
 white_clip = clip1.fl_image(advanced_lanelines) # NOTE: this function expects color images!!
 white_clip.write_videofile(video_binary_output, audio=False)
-
 
 
 # image pipeline - run for two successive images"

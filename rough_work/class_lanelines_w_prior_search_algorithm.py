@@ -5,7 +5,8 @@ import pickle
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import cv2
-
+import time
+import datetime
 
 # class to store the characteristics of every laneline
 class LaneLines():
@@ -29,7 +30,7 @@ class LaneLines():
         self.avg_right_fit = prev_avg_right_fit
 
 
-    # function for detecting lanelines manually
+    # function for detecting lanelines manually using the sliding windows approach
     def sliding_windows(self):
 
         # This part creates the histogram if lanelines are not detected in the previous iteration
@@ -112,62 +113,71 @@ class LaneLines():
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
+        print("leftx size", leftx.size)
+        print("rightx size", rightx.size)
+
         '''
         # for first frame, we assume that we will find some pixels...
         # we check if either avg_left_fit or avg_right_fit lists are empty
         '''
 
         # only for first frame, when the average left and right fit lists are empty
-        if((len(self.avg_left_fit) == 0) | (len(self.avg_right_fit) == 0)):
+        if((len(self.avg_left_fit) == 0) or (len(self.avg_right_fit) == 0)):
             self.left_fit = np.polyfit(lefty, leftx, 2)
             self.right_fit = np.polyfit(righty, rightx, 2)
             print(self.left_fit)
             print(self.right_fit)
 
-        # for all subsequent frames, we check if avg fits are empty
-        if((len(self.avg_left_fit) != 0) | (len(self.avg_right_fit) != 0)):
-            # check if leftx, lefty, rightx, righty are None
-            if ((leftx.size == 0) | (lefty.size == 0)):
+        if((len(self.avg_left_fit) != 0) or (len(self.avg_right_fit) != 0)):
+            if ((leftx.size < 50) or (lefty.size < 50)):
                 temp_l_fit = self.avg_left_fit
                 self.left_fit = temp_l_fit
                 # print("avg left fit = ", self.left_fit)
                 self.right_fit = np.polyfit(righty, rightx, 2)
                 print('Reverting to average of previous estimates for left lane')
+            
+            # if right laneline is not detected ...
+            elif ((rightx.size < 50) or (righty.size < 50)):
+                
+                # If a laneline is still not detected in the current iteration, we compute
+                # right lane equation using the left laneline equation
+                
+                print('Reverting to average of previous estimates for right lane ...')
 
-            if ((rightx.size == 0) | (righty.size == 0)):
-                temp_r_fit = self.avg_right_fit
-                self.right_fit = temp_r_fit
-                # print("avg right fit = ", self.right_fit)
+                # calculate current left fit
+                current_left_fit = np.polyfit(lefty, leftx, 2)
+                print("current calculated left fit = ", current_left_fit)
+
+                # compute an offset fit from current left fit
+                offset_r_fit = current_left_fit
+
+                print("temp_r_fit[2] = ", offset_r_fit[2])
+                offset_r_fit[2] = offset_r_fit[2] + 700.0
+                print("new temp_r_fit[2] = ", offset_r_fit[2])
+
+                print("offset r fit = ", offset_r_fit)
+                # print("previous frame right fit = ", prev_estimate)
+                # print("prev average right fit = ", prev_avg)
+
+                # use 80% of offset fit and 20% of previous average fit
+                self.right_fit = offset_r_fit
+                # self.left_fit = current_left_fit    # DOESN'T SEEM TO WORK, GRABS THE VALUE OF offset_r_fit
                 self.left_fit = np.polyfit(lefty, leftx, 2)
-                print('Reverting to average of previous estimates for right lane')
-                # if all the lists contain some values, we apply the polyfit here...
 
+                print("self.left_fit in function = ", self.left_fit)
 
-        '''
-        else:
-            # determine best fitting 2nd order polynomials for lanelines
-            self.left_fit = np.polyfit(lefty, leftx, 2)
-            self.right_fit = np.polyfit(righty, rightx, 2)
-        '''
+            else:
+                self.left_fit = np.polyfit(lefty, leftx, 2)
+                self.right_fit = np.polyfit(righty, rightx, 2)
 
         # Generate x and y values for plotting
-        try:
-            print("check if this is executed!")
-            self.left_fitx = self.left_fit[0]*self.ploty**2 + self.left_fit[1]*self.ploty + self.left_fit[2]
-            self.right_fitx = self.right_fit[0]*self.ploty**2 + self.right_fit[1]*self.ploty + self.right_fit[2]
-        except IndexError:
-            # Avoids an error if `left` and `right_fit` are still none or incorrect
-            print('The function failed to fit a line!')
-            print('Reverting to average of previous estimates')
+        self.left_fitx = self.left_fit[0]*self.ploty**2 + self.left_fit[1]*self.ploty + self.left_fit[2]
+        self.right_fitx = self.right_fit[0]*self.ploty**2 + self.right_fit[1]*self.ploty + self.right_fit[2]
 
-            # Here, we compute the data based on average of previous 5 measurements
-            self.left_fitx = self.avg_left_fit[0]*self.ploty**2 + self.avg_left_fit[1]*self.ploty + self.avg_left_fit[2]
-            self.right_fitx = self.avg_right_fit[0]*self.ploty**2 + self.avg_right_fit[1]*self.ploty + self.avg_right_fit[2]
-
-
+        '''
         ## Visualization ##
         ## Uncommment only when running on test images"
-        '''
+        
         # Colors in the left and right lane regions
         out_img[lefty, leftx] = [255, 0, 0]
         out_img[righty, rightx] = [0, 0, 255]
@@ -184,22 +194,17 @@ class LaneLines():
     # for searching from a prior region
     def search_from_prior(self):
 
-        # HYPERPARAMETER
-        # Choose the width of the margin around the previous polynomial to search
-        # The quiz grader expects 100 here, but feel free to tune on your own!
         out_img = np.dstack((self.binary_warped, self.binary_warped, self.binary_warped))
-        
+
+        # HYPERPARAMETER
         search_margin = 100
 
         # Grab activated pixels
         nonzero = self.binary_warped.nonzero()
         nonzeroy = np.array(nonzero[0])
         nonzerox = np.array(nonzero[1])
-            
-        ### TO-DO: Set the area of search based on activated x-values ###
-        ### within the +/- margin of our polynomial function ###
-        ### Hint: consider the window areas for the similarly named variables ###
-        ### in the previous quiz, but change the windows to our new search area ###
+
+        # Here we set the area of search based on activated x-values within the +/- margin of our polynomial function
 
         left_lane_inds = ((nonzerox > (self.left_fit[0]*(nonzeroy**2) + self.left_fit[1]*nonzeroy + 
                         self.left_fit[2] - search_margin)) & (nonzerox < (self.left_fit[0]*(nonzeroy**2) + 
@@ -214,6 +219,10 @@ class LaneLines():
         lefty = nonzeroy[left_lane_inds]
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
+
+        
+        print("prior section - leftx size: ", leftx.size)
+        print("prior section - rightx size: ", rightx.size)
 
         # check if the arrays are empty, i.e. no pixels are detected
         if ((leftx.size == 0) | (lefty.size == 0)):
@@ -242,8 +251,8 @@ class LaneLines():
 
         else:
             # if no lanelines are found using search from prior option, use sliding windows functionality
-            out_img, self.left_fit, self.right_fit = self.sliding_windows()
             print("sliding windows was called from search prior...")
+            out_img, self.left_fit, self.right_fit = self.sliding_windows()
         
         
         ## Visualization ##
@@ -295,11 +304,9 @@ class LaneLines():
         return out_img, self.left_fit, self.right_fit, self.detected
 
 
-
     def measure_curvature_pixels(self):
         
         # Calculates the curvature of polynomial functions in pixels.
-        
         # Define y-value where we want radius of curvature
         # We'll choose the maximum y-value, corresponding to the bottom of the image
         y_eval = np.max(self.ploty)
@@ -320,3 +327,28 @@ class LaneLines():
         offset = offset_in_pixels * xm_per_pix
 
         return offset, left_curverad, right_curverad
+
+
+    # function to remove outliers from an array
+    def rmv_outliers(original_array, no_of_std_deviations):
+
+        # calculate average of all elements
+        mean = np.mean(original_array)
+
+        # get the standard deviation
+        std_deviation = np.std(original_array)
+
+        # calculate standard deviation of all elements
+        distance_from_mean = abs(original_array - mean)
+
+        # no of standard deviations allowed
+        no_of_std_deviations = 2
+
+        # not outliers
+        not_outlier = distance_from_mean < max_deviations * std_deviation
+
+        # new array without the outliers
+        new_array = an_array[not_outlier]
+
+        return new_array
+

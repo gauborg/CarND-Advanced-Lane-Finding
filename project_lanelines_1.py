@@ -247,8 +247,6 @@ def advanced_lanelines(img):
 
     frame = frame + 1
 
-    print()
-
     return result
 
 
