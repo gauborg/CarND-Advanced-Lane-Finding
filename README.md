@@ -159,7 +159,8 @@ if ((leftx.size == 0) | (lefty.size == 0)):
         self.left_fit = np.polyfit(lefty, leftx, 2)
         print('Reverting to average of previous estimates for right lane')
     else:
-        # if lanelines pixels are found, we use current values of lefty, leftx, righty, rightx to calculate our latest laneline equations...
+        # if lanelines pixels are found, we use current values of lefty, leftx,
+        # righty, rightx to calculate our latest laneline equations...
         self.left_fit = np.polyfit(lefty, leftx, 2)
         self.right_fit = np.polyfit(righty, rightx, 2)
 ```
